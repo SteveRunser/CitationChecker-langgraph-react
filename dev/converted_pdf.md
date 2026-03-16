@@ -482,88 +482,10 @@ SimuCell3D is open source and freely available as a public git repository at htt
 5. Gómez-González, M., Latorre, E., Arroyo, M. &amp; Trepat, X. Measuring mechanical stress in living tissues. Nat. Rev. Phys. 2 , 300-317 (2020).
 6. Sugimura, K., Lenne, P.-F. &amp; Graner, F. Measuring forces and stresses in situ in living tissues. Development 143 , 186-196 (2016).
 7. Zhang, J., Chada, N. C. &amp; Reinhart-King, C.-A. Microscale interrogation of 3D tissue mechanics. Front. Bioeng. Biotechnol. 7 , 412 (2023).
+
 8. Mitchison, J. M. &amp; Swann, M. M. The mechanical properties of the cell surface: III. The sea-urchin egg from fertilization to cleavage. J. Exp. Biol. 32 , 734-750 (1955).
 9. Radmacher, M., Tillmann, R., Fritz, M. &amp; Gaub, H. E. From molecules to cells: imaging soft samples with the atomic force microscope. Science 257 , 1900-1905 (1992).
 10. Guck, J. et al. The optical stretcher: a novel laser tool to micromanipulate cells. Biophys. J. 81 , 767-784 (2001).
-11. Vogel, A. &amp; Venugopalan, V. Mechanisms of pulsed laser ablation of biological tissues. Biophys. J. 103 , 577-644 (2003).
-12. Dillon, R. &amp; Othmer, H. G. A mathematical model for outgrowth and spatial patterning of the vertebrate limb bud. J. Theor. Biol. 197 , 295-330 (1999).
-13. Brodland, G. W. et al. Video force microscopy reveals the mechanics of ventral furrow invagination in Drosophila . Proc. Natl Acad. Sci. USA 107 , 22111-22116 (2010).
-14. Ogita, G. et al. Image-based parameter inference for epithelial mechanics. PLOS Comput. Biol. 18 , e1010209 (2022).
-15. Rodriguez, M. L., McGarry, P. J. &amp; Sniadecki, N. J. Review on cell mechanics: experimental and modeling approaches. Appl. Mech. Rev. 65 , 060801 (2013).
-16. Vaziri, A. &amp; Gopinath, A. Cell and biomolecular mechanics in silico. Nat. Mater. 7 , 15-23 (2008).
-17. Schamberger, B. et al. Curvature in biological systems: its quantification, emergence, and implications across the scales. Adv. Mater. 35 , 2206110 (2023).
-
-18. Osborne, J. M., Fletcher, A. G., Pitt-Francis, J. M., Maini, P. K. &amp; Gavaghan, D. J. Comparing individual-based approaches to modelling the self-organization of multicellular tissues. PLoS Comput. Biol. 13 , e1005387 (2017).
-19. Drasdo, D. &amp; Höhme, S. A single-cell-based model of tumor growth in vitro: monolayers and spheroids. Phys. Biol. 2 , 133 (2005).
-20.  Dutta-Moscato, J. et al. A multiscale agent-based in silico model of liver fibrosis progression. Front. Bioeng. Biotechnol. 2 , 18 (2014).
-21. Oster, G. &amp; Weliky, M. The mechanical basis of cell rearrangement I. Epithelial morphogenesis during fundulus epiboly. Development 109 , 373-386 (1990).
-22. Kawasaki, K., Nagai, T. &amp; Nakashima, K. Vertex models for two-dimensional grain growth. Phil. Mag. B 60 , 399-421 (1989).
-23. Nagai, T. &amp; Honda, H. A dynamic cell model for the formation of epithelial tissues. Phil. Mag. B 81 , 699-719 (2001).
-24. Farhadifar, R., Röper, J. C., Aigouy, B., Eaton, S. &amp; Jülicher, F. The influence of cell mechanics, cell-cell interactions, and proliferation on epithelial packing. Curr. Biol. 17 , 2095-2104 (2007).
-25. Fletcher, A. G., Osterfield, M., Baker, R. E. &amp; Shvartsman, S. Y. Vertex models of epithelial morphogenesis. Biophys. J. 106 , 2291-2304 (2014).
-26. Honda, H., Tanemura, M. &amp; Nagai, T. A three-dimensional vertex dynamics cell model of space-filling polyhedra simulating cell behavior in a cell aggregate. J. Theor. Biol. 226 , 439-453 (2004).
-27. Bi, D., Lopez, J. H., Schwarz, J. M. &amp; Manning, M. L. A densityindependent rigidity transition in biological tissues. Nat. Phys. 11 , 1074-1079 (2015).
-28. Honda, H., Motosugi, N., Nagai, T., Tanemura, M. &amp; Hiiragi, T. Computer simulation of emerging asymmetry in the mouse blastocyst. Development 135 , 1407-1414 (2008).
-29. Rozman, J., Krajnc, M. &amp; Ziherl, P. Collective cell mechanics of epithelial shells with organoid-like morphologies. Nat. Commun. 11 , 3805 (2020).
-30.  Honda, H., Nagai, T. &amp; Tanemura, M. Two different mechanisms of planar cell intercalation leading to tissue elongation. Dev. Dyn. 237 , 1826-1836 (2008).
-31. Conrad, L. et al. The biomechanical basis of biased epithelial tube elongation in lung and kidney development. Development 148 , dev194209 (2021).
-32. Rejniak, K. A. A single-cell approach in modeling the dynamics of tumor microregions. Math. Biosci. Eng. 2 , 643-655 (2005).
-33.  Tamulonis, C. et al. A cell-based model of Nematostella vectensis gastrulation including bottle cell formation, invagination and zippering. Dev. Biol. 351 , 217-228 (2011).
-34.  Merks, R. M. H., Guravage, M., Inzé, D. &amp; Beemster, G. T. S. VirtualLeaf: an open-source framework for cell-based modeling of plant tissue growth and development. Plant Physiol. 155 , 656-666 (2011).
-35. Ataeia, M. et al. LBfoam: an open-source software package for the simulation of foaming using the lattice Boltzmann method. Comput. Phys. Commun. 259 , 107698 (2021).
-36.  Kähärä, T., Tallinen, T. &amp; Timonen, J. Numerical model for the shear rheology of two-dimensional wet foams with deformable bubbles. Phys. Rev. E 90 , 032307 (2014).
-37. Mkrtchyan, A., Åström, J. &amp; Karttunen, M. A new model for cell division and migration with spontaneous topology changes. Soft Matter 10 , 4332-4339 (2014).
-38. Tanaka, S., Sichau, D. &amp; Iber, D. LBIBCell: a cell-based simulation environment for morphogenetic problems. Bioinformatics 31 , 2340-2347 (2015).
-39. Boromand, A., Signoriello, A., Ye, F., O'Hern, C. S. &amp; Shattuck, M. D. Jamming of deformable polygons. Phys. Rev. Lett. 121 , 248003 (2018).
-40.  Kim, S., Pochitaloff, M., Stooke-Vaughan, G. &amp; Campàs, O. Embryonic tissues as active foams. Nat. Phys. 17 , 859-866 (2021).
-41. Brown, P. J., Green, G. E. F., Binder, B. J. &amp; Osborne, J. M. A rigid body framework for multi-cellular modelling. Nat. Comput. Sci. 1 , 754-766 (2021).
-42. Conradin, R., Coreixas, C., Latt, J. &amp; Chopard, B. PalaCell2D: a framework for detailed tissue morphogenesis. J. Comput. Sci. 53 , 101353 (2021).
-43.  Vetter, R., Runser, S. V. M. &amp; Iber, D. PolyHoop: soft particle and tissue dynamics with topological transitions. Comput. Phys. Commun. 299 , 109128 (2024).
-44.  Da, F., Barry, C. &amp; Grinspun, E. Multimaterial mesh-based surface tracking. ACM Trans. Graphics 33 , 112 (2014).
-45. Van Liedekerke, P. et al. A quantitative high-resolution computational mechanics cell model for growing and regenerating tissues. Biomech. Model. Mechanobiol. 19 , 189-220 (2020).
-46.  Wang, D. et al. The structural, vibrational, and mechanical properties of jammed packings of deformable particles in three dimensions. Soft Matter 17 , 9901-9915 (2021).
-47. Torres-Sánchez, A., Kerr Winter, M. &amp; Salbreux, G. Interacting Active Surfaces: a model for three-dimensional cell aggregates. PLoS Comput. Biol. 18 , e1010762 (2022).
-48.  Liu, S., Lemaire, P., Munro, E. &amp; Mani, M. A mechanical atlas for Ascidian gastrulation. Preprint at bioRxiv https://doi.org/ 10.1101/2022.11.05.515310 (2023).
-49. Brakke, K. A. The surface evolver. Exp. Math. 2 , 141-165 (1992).
-50.  Madhikar, P., Åström, J., Westerholm, J. &amp; Karttunen, M. CellSim3D: GPU accelerated software for simulations of cellular growth and division in three dimensions. Comput. Phys. Commun. 232 , 206-213 (2018).
-51. Okuda, H. &amp; Hiraiwa, T. Modelling contractile ring formation and division to daughter cells for simulating proliferative multicellular dynamics. Eur Phys. J. E 46 , 56 (2023).
-52. Cuvelier, M. et al. Stability of asymmetric cell division: a deformable cell model of cytokinesis applied to C. elegans . Biophys. J. 122 , 1858-1867 (2023).
-53. Odenthal, T. et al. Analysis of initial cell spreading using mechanistic contact formulations for a deformable cell model. PLoS Comput. Biol. 9 , e1003267 (2013).
-54. Maître, J.-L. et al. Asymmetric division of contractile domains couples cell positioning and fate specification. Nature 536 , 344-348 (2016).
-55. Helfrich, W. Elastic properties of lipid bilayers: theory and possible experiments. Z. Naturforsch. C 28 , 693-703 (1973).
-56. Nance, J. Getting to know your neighbor: cell polarization in early embryos. J. Cell Biol. 206 , 823-832 (2014).
-57. Martin-Belmonte, F. &amp; Perez-Moreno, M. Epithelial cell polarity, stem cells and cancer. Nat. Rev. Cancer 12 , 23-38 (2012).
-58. Hoshen, J. &amp; Kopelman, R. Percolation and cluster distribution. I. Cluster multiple labeling technique and critical concentration algorithm. Phys. Rev. B 14 , 3438-3445 (1976).
-59. Carsen, S., Wang, T., Michalis, M. &amp; Pachitariu, M. Cellpose: a generalist algorithm for cellular segmentation. Nat. Methods 18 , 100-106 (2021).
-60.  Marieb, E. N. Human Anatomy &amp; Physiology 3rd edn, Ch. 4 (Benjamin/Cummings, 1995).
-61. Lecuit, T. &amp; Lenne, P.-F. Cell surface mechanics and the control of cell shape, tissue patterns and morphogenesis. Nat. Rev. Mol. Cell Biol. 8 , 633-644 (2007).
-62. Käfer, J., Hayashi, T., Maréeand, A. F. M., Carthew, R. W. &amp; Graner, F. Cell adhesion and cortex contractility determine cell patterning in the Drosophila retina. Proc. Natl Acad. Sci. USA 104 , 18549-18554 (2007).
-
-63.  Micalizzi, D. S., Farabaugh, S. M. &amp; Ford, H. L. Epithelialmesenchymal transition in cancer: parallels between normal development and tumor progression. J. Mammary Gland Biol. Neoplasia 15 , 117-134 (2010).
-64.  Gómez, H. F., Dumond, M. S., Hodel, L., Vetter, R. &amp; Iber, D. 3D cell neighbour dynamics in growing pseudostratified epithelia. eLife 10 , e68135 (2021).
-65. Strzyz, P. J., Matejcic, M. &amp; Norden, C. Heterogeneity, cell biology and tissue mechanics of pseudostratified epithelia: coordination of cell divisions and growth in tightly packed tissues. Int. Rev. Cell Mol. Biol. 325 , 89-118 (2016).
-66.  Iber, D. &amp; Vetter, R. Relationship between epithelial organization and morphogen interpretation. Curr. Opin. Genet. Dev. 75 , 101916 (2022).
-67. Spear, P. C. &amp; Erickson, C. A. Interkinetic nuclear migration: a mysterious process in search of a function. Dev. Growth Differ. 54 , 306-316 (2012).
-68.  Smutny, M. et al. Friction forces position the neural anlage. Nat. Cell Biol. 19 , 306-317 (2017).
-69.  Kim, S., Pochitaloff, M., Stooke-Vaughan, G. &amp; Campàs, O. Embryonic tissues as active foams. Nat. Phys. 17 , 859-866 (2021).
-70. Kitware The VTK User's Guide 11th edn, Section 19.3 (Kitware, 2010).
-71. Bowers, J., Wang, R., Wei, L. &amp; Maletz, D. Parallel Poisson disk sampling with spectrum analysis on surfaces. ACM Trans. Graph. 29 , 166 (2010).
-72. Bernardini, F., Mittleman, J., Rushmeier, H., Silva, C. &amp; Taubin, G. The ball-pivoting algorithm for surface reconstruction. IEEE Trans. Vis. Comput. Graph. 5 , 349-359 (1999).
-73. Digne, J. An analysis and implementation of a parallel ball pivoting algorithm. Image Process. Line 4 , 149-168 (2014).
-74. Wardetzky, M., Bergou, M., Harmon, D., Zorin, D. &amp; Grinspun, E. Discrete quadratic curvature energies. Comput. Aided Geom. Des. 24 , 499-518 (2007).
-75. Runser, S. Raw data generated for the article: 'SimuCell3D: 3D Simulation of Tissue Mechanics with Cell Polarization", Steve Runser, Roman Vetter, Dagmar Iber. Zenodo https://doi.org/ 10.5281/zenodo.10797576 (2024).
-76. Runser, S. Source code of SimuCell3D. Zenodo https://doi.org/ 10.5281/zenodo.10796908 (2024).
-77. Pertoft, H. &amp; Torvard, L. C. Isopycnic Separation of Cells and Cell Organelles by Centrifugation in Modified Colloidal Silica Gradients (Springer, 1977).
-78. Tinevez, J.-Y. et al. Role of cortical tension in bleb growth. Proc. Natl Acad. Sci. USA 106 , 18581-18586 (2009).
-79. Petrie, R. J. &amp; Koo, H. Direct measurement of intracellular pressure. Curr. Protoc. Cell Biol. 63 , 12.9.1-12.9.9 (2014).
-80.  Stewart, M. P. et al. Hydrostatic pressure and the actomyosin cortex drive mitotic cell rounding. Nature 469 , 1476-4687 (2011).
-81. Fischer-Friedrich, E., Hyman, A. A., Jülicher, F., Müller, D. J. &amp; Helenius, J. Quantification of surface tension and internal pressure generated by single mitotic cells. Sci. Rep. 4 , 6213 (2014).
-82.  Nandakumar, V., Kelbauskas, L., Johnson, R. &amp; Meldrum, D. Quantitative characterization of pre-neoplastic progression using single cell computed tomography and 3D karyometry. Cytometry A 79 , 25-34 (2011).
-83.  Kaneko, H. et al. The presence of G1 and G2 populations in normal epithelium of rat urinary bladder. Basic Appl. Histochem. 28 , 41-57 (1984).
-84.  Renato, B. The Biology of Cell Reproduction (Harvard Univ. Press, 1985).
-85. Chugh, P. et al. Actin cortex architecture regulates cell surface tension. Nat. Cell Biol. 19 , 689-697 (2017).
-86. Maître, J.-L., Niwayama, R., Turlier, H. &amp; Nédélec, F. Pulsatile cell-autonomous contractility drives compaction in the mouse embryo. Nat. Cell Biol. 17 , 849-855 (2015).
-87. Zhelev, D. V., Needham, D. &amp; Hochmuth, R. M. Role of the membrane cortex in neutrophil deformation in small pipets. Proc. Natl Acad. Sci. USA 67 , 696-705 (1994).
 
 ## Acknowledgements
 
