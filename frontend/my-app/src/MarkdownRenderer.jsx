@@ -1,67 +1,69 @@
-import React, { useState } from "react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from "remark-gfm";
+import { visit } from "unist-util-visit";
 
 
+function remarkInteractiveChunks() {
+  return (tree) => {
+    let idCounter = 0;
 
-function InteractiveSpan({ children, index, active, toggle }) {
-  return (
-    <span
-      onClick={() => toggle(index)}
-      className={`cursor-pointer ${
-        active ? "bg-yellow-200" : "hover:bg-gray-200"
-      }`}
-    >
-      {children}
-    </span>
-  );
+    visit(tree, "text", (node, index, parent) => {
+      if (!parent) return;
+
+      const parts = node.value.split(/(\s+)/);
+
+      const newNodes = parts.map((part) => {
+        if (part.trim() === "") {
+          return { type: "text", value: part };
+        }
+
+        return {
+          type: "element",
+          data: {
+            hName: "span",
+            hProperties: {
+              "data-chunk-id": idCounter++,
+            },
+          },
+          children: [{ type: "text", value: part }],
+        };
+      });
+
+      parent.children.splice(index, 1, ...newNodes);
+
+      return index + newNodes.length;
+    });
+  };
 }
+
 
 
 
 function MarkdownRenderer() {
-  const [active, setActive] = useState(null);
-  const [hovered, setHovered] = useState(null);
 
-  const text_chunks_ar = [
-    {id:0, text:"# Title of the paper"},
-    {id:1, text:"First sentence."},
-    {id:2, text:"Second sentence."},
-  ];
-
-  const toggle = (i) => {
-    setActive((prev) => (prev === i ? null : i));
-  };
+  let markdown_text = `Hello world **!**`;
 
   return (
-    <div className="space-y-4">
-      {text_chunks_ar.map((chunk) => {
-        const isActive = active === chunk.id;
-        const isHovered = hovered === chunk.id;
-        const handleClick = (e) => {
-          console.log("Clicked chunk:", chunk.id, "isActive before:", isActive);
-          toggle(chunk.id);
-        };
-        
-        return (
-          <div
-            key={chunk.id}
-            onClick={handleClick}
-            onMouseEnter={() => setHovered(chunk.id)}
-            onMouseLeave={() => setHovered(null)}
-            style={{
-              backgroundColor: isActive ? "rgb(253, 224, 71)" : (isHovered ? "rgb(229, 231, 235)" : "transparent"),
-              padding: "8px",
-              borderRadius: "4px",
-              cursor: "pointer",
-              transition: "background-color 0.2s"
-            }}
-          >
-            <ReactMarkdown>{chunk.text}</ReactMarkdown>
-          </div>
-        );
-      })}
-    </div>
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm, remarkInteractiveChunks]}
+      skipHtml={false}
+      components={{
+        span: ({ node, ...props }) => {
+          const id = props["data-chunk-id"];
+
+          return (
+            <span
+              {...props}
+              onClick={() => console.log("clicked chunk", id)}
+              className="cursor-pointer hover:bg-yellow-200"
+            />
+          );
+        },
+      }}
+    >
+      {markdown_text}
+    </ReactMarkdown>
   );
 }
 
-export default MarkdownRenderer
+export default MarkdownRenderer;
