@@ -19,7 +19,7 @@ function InteractiveSpan({ children, index, active, toggle }) {
 
 
 function MarkdownRenderer() {
-  const [active, setActive] = useState({});
+  const [active, setActive] = useState(null);
   const [hovered, setHovered] = useState(null);
 
   const text_chunks_ar = [
@@ -29,13 +29,13 @@ function MarkdownRenderer() {
   ];
 
   const toggle = (i) => {
-    setActive((prev) => ({ ...prev, [i]: !prev[i] }));
+    setActive((prev) => (prev === i ? null : i));
   };
 
   return (
     <div className="space-y-4">
       {text_chunks_ar.map((chunk) => {
-        const isActive = active[chunk.id];
+        const isActive = active === chunk.id;
         const isHovered = hovered === chunk.id;
         const handleClick = (e) => {
           console.log("Clicked chunk:", chunk.id, "isActive before:", isActive);
