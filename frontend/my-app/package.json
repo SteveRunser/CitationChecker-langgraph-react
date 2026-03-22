@@ -10,11 +10,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-pdf-viewer/core": "^3.12.0",
+    "@react-pdf-viewer/highlight": "^3.12.0",
+    "@react-pdf/renderer": "^4.3.2",
+    "pdfjs-dist": "^3.11.174",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-markdown": "^10.1.0",
     "react-resizable-panels": "^4.7.3",
     "remark-gfm": "^4.0.1",
+    "sbd": "^1.0.19",
     "unist-util-visit": "^5.1.0"
   },
   "devDependencies": {

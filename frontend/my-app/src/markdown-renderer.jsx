@@ -1,11 +1,48 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from "remark-gfm";
 import { visit } from "unist-util-visit";
+import chunksData from "./data/chunks.json";
 
 
 const CHUNK_DELIMITER = "<<<CHUNK_DELIMITER>>>";
 
+
+function MarkdownRenderer() {
+  const textChunks = useMemo(
+    () => [...chunksData].sort((a, b) => a.chunk_id - b.chunk_id).map((chunk) => chunk.text),
+    []
+  );
+
+  const [activeChunkId, setActiveChunkId] = useState(null);
+  const handleToggleChunk = (id) => {
+    setActiveChunkId((prev) => (prev === id ? null : id));
+  };
+
+  // ReactMarkdown expects one markdown string, so we join chunks with an internal delimiter.
+  // The remark plugin reads that delimiter and maps rendered text back to each chunk ID.
+  const markdown_text = textChunks.join(CHUNK_DELIMITER);
+
+  // Tell ReactMarkdown to:
+  // 1. Use our remarkInteractiveChunks plugin to transform the markdown
+  // 2. Use remarkGfm for GitHub-flavored markdown features
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm, remarkInteractiveChunks]}
+      skipHtml={false}
+      components={{
+        span: createInteractiveSpanRenderer({
+          activeChunkId,
+          onToggleChunk: handleToggleChunk,
+        }),
+      }}
+    >
+      {markdown_text}
+    </ReactMarkdown>
+  );
+}
+
+export default MarkdownRenderer;
 
 // This is a "remark plugin" - a function that transforms markdown before it's rendered
 // It adds interactive features to text by wrapping each chunk in <span> elements
@@ -75,39 +112,5 @@ function createInteractiveSpanRenderer({ activeChunkId, onToggleChunk }) {
 }
 
 
-function MarkdownRenderer() {
-  const textChunks = [
-    "Hello ",
-    "world ",
-    "**!**",
-  ];
 
-  const [activeChunkId, setActiveChunkId] = useState(null);
-  const handleToggleChunk = (id) => {
-    setActiveChunkId((prev) => (prev === id ? null : id));
-  };
 
-  // ReactMarkdown expects one markdown string, so we join chunks with an internal delimiter.
-  // The remark plugin reads that delimiter and maps rendered text back to each chunk ID.
-  const markdown_text = textChunks.join(CHUNK_DELIMITER);
-
-  // Tell ReactMarkdown to:
-  // 1. Use our remarkInteractiveChunks plugin to transform the markdown
-  // 2. Use remarkGfm for GitHub-flavored markdown features
-  return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm, remarkInteractiveChunks]}
-      skipHtml={false}
-      components={{
-        span: createInteractiveSpanRenderer({
-          activeChunkId,
-          onToggleChunk: handleToggleChunk,
-        }),
-      }}
-    >
-      {markdown_text}
-    </ReactMarkdown>
-  );
-}
-
-export default MarkdownRenderer;

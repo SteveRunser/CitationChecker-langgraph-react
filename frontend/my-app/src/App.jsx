@@ -1,4 +1,5 @@
-import MarkdownRenderer from './markdown-renderer'
+//import MarkdownRenderer from './markdown-renderer'
+import PdfRenderer from './pdf-renderer'
 import './App.css'
 
 import {
@@ -27,7 +28,7 @@ function App() {
               minSize={20}
               className="h-full w-full bg-bg_shade_1 rounded-xl overflow-auto p-2" 
             >
-              <MarkdownRenderer />
+              <PdfRenderer pdfFilePath="/simucell3d-nat-comp-sci-paper.pdf" />
             </Panel>
 
             <Separator className="w-1 bg-gray2 rounded" />
