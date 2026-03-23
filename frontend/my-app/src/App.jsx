@@ -1,5 +1,7 @@
 //import MarkdownRenderer from './markdown-renderer'
+import { useCallback, useState } from 'react'
 import PdfRenderer from './pdf-renderer'
+import SentenceSegmenter from './sentence-segmenter'
 import './App.css'
 
 import {
@@ -9,9 +11,36 @@ import {
 } from "react-resizable-panels";
 
 function App() {
+  const pdfFilePath = '/simucell3d-nat-comp-sci-paper.pdf'
+  const [sentenceAreas, setSentenceAreas] = useState([])
+  const [isSegmenting, setIsSegmenting] = useState(false)
+  const [segmentationError, setSegmentationError] = useState('')
+
+  const handleSegmentationStart = useCallback(() => {
+    setIsSegmenting(true)
+    setSegmentationError('')
+    setSentenceAreas([])
+  }, [])
+
+  const handleSegmentationComplete = useCallback((segmentedAreas) => {
+    setSentenceAreas(segmentedAreas ?? [])
+    setIsSegmenting(false)
+  }, [])
+
+  const handleSegmentationError = useCallback((error) => {
+    setSegmentationError(error?.message ?? 'Sentence segmentation failed')
+    setIsSegmenting(false)
+  }, [])
+
   return (
     <>
       <div className="w-screen h-screen flex flex-col items-center justify-center bg-bg_shade_3">
+        <SentenceSegmenter
+          pdfFilePath={pdfFilePath}
+          onStart={handleSegmentationStart}
+          onComplete={handleSegmentationComplete}
+          onError={handleSegmentationError}
+        />
 
         <div className="flex flex-1 h-full w-full p-1">
           
@@ -28,7 +57,7 @@ function App() {
               minSize={20}
               className="h-full w-full bg-bg_shade_1 rounded-xl overflow-auto p-2" 
             >
-              <PdfRenderer pdfFilePath="/simucell3d-nat-comp-sci-paper.pdf" />
+              <PdfRenderer pdfFilePath={pdfFilePath} highlights={sentenceAreas} />
             </Panel>
 
             <Separator className="w-1 bg-gray2 rounded" />
@@ -49,6 +78,8 @@ function App() {
                 {/* Statement Section */}
                 <Panel defaultSize={50} minSize={20} id="vertical-group-pannel-1" className='h-full w-full bg-bg_shade_1 rounded-xl overflow-auto p-2'>
                   <h1>Statements</h1>
+                  <p>{isSegmenting ? 'Segmenting sentences…' : `Detected segments: ${sentenceAreas.length}`}</p>
+                  {segmentationError ? <p>{segmentationError}</p> : null}
 
                 </Panel>
 
