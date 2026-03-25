@@ -1,7 +1,8 @@
 //import MarkdownRenderer from './markdown-renderer'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import PdfRenderer from './pdf-renderer'
 import SentenceSegmenter from './sentence-segmenter'
+import { runReferenceExtractionGraph } from './graphs/reference-extraction-graph'
 import './App.css'
 
 import {
@@ -31,6 +32,33 @@ function App() {
     setSegmentationError(error?.message ?? 'Sentence segmentation failed')
     setIsSegmenting(false)
   }, [])
+
+  useEffect(() => {
+    if (isSegmenting || sentenceAreas.length === 0) {
+      return
+    }
+
+    let isCancelled = false
+
+    const runExtraction = async () => {
+      try {
+        const references = await runReferenceExtractionGraph(sentenceAreas)
+        if (!isCancelled) {
+          console.log('[references] Extraction finished', references)
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          console.error('[references] Extraction failed', error)
+        }
+      }
+    }
+
+    runExtraction()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [sentenceAreas, isSegmenting])
 
   return (
     <>

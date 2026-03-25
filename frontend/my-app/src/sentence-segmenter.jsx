@@ -2,6 +2,27 @@ import { useEffect } from 'react';
 import { getDocument } from 'pdfjs-dist';
 import sbd from 'sbd';
 
+const downloadSegmentedTextTokens = (segmentedTextTokens, pdfFilePath) => {
+  const fileBaseName = pdfFilePath
+    ?.split('/')
+    ?.pop()
+    ?.replace(/\.pdf$/i, '') || 'segmented-text-tokens';
+  const fileName = `${fileBaseName}-segmented-tokens.json`;
+
+  const jsonContent = JSON.stringify(segmentedTextTokens ?? []);
+  const blob = new Blob([jsonContent], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+};
+
 const getRandomColor = (sentenceId) => {
   const colorId = sentenceId % 4;
   const hue = 80 * colorId;
@@ -64,8 +85,9 @@ const extractPdfTextTokens = async (pdfFilePath) => {
   }
 };
 
-const algorithmicSentenceSegmentation = async (rawTextTokens) => {
+const rulebasedSentenceSegmentation = async (rawTextTokens) => {
   const segmentedTextTokens = [];
+  let sentenceId = 0;
 
   try {
     const pageIndexes = [...new Set(rawTextTokens.map((token) => token.pageIndex))].sort((a, b) => a - b);
@@ -91,7 +113,7 @@ const algorithmicSentenceSegmentation = async (rawTextTokens) => {
       let cursor = 0;
       let tokenCursor = 0;
 
-      sentences.forEach((sentence, sentenceId) => {
+      sentences.forEach((sentence) => {
         const sentenceStart = cursor;
         const sentenceEnd = sentenceStart + sentence.length;
         cursor = sentenceEnd;
@@ -164,6 +186,7 @@ const algorithmicSentenceSegmentation = async (rawTextTokens) => {
             color,
           });
         });
+        sentenceId += 1;
       });
     });
 
@@ -188,7 +211,7 @@ function SentenceSegmenter({ pdfFilePath, onStart, onComplete, onError }) {
         onStart?.();
 
         const rawTextTokens = await extractPdfTextTokens(pdfFilePath);
-        const segmentedTextTokens = await algorithmicSentenceSegmentation(rawTextTokens ?? []);
+        const segmentedTextTokens = await rulebasedSentenceSegmentation(rawTextTokens ?? []);
 
         if (isMounted) {
           onComplete?.(segmentedTextTokens ?? []);
