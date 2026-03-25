@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import PdfRenderer from './pdf-renderer'
 import SentenceSegmenter from './sentence-segmenter'
+import ReferenceSection from './reference-section'
 import { runReferenceExtractionGraph } from './graphs/reference-extraction-graph'
 import './App.css'
 
@@ -14,12 +15,17 @@ import {
 function App() {
   const pdfFilePath = '/simucell3d-nat-comp-sci-paper.pdf'
   const [sentenceAreas, setSentenceAreas] = useState([])
+  const [references, setReferences] = useState([])
   const [isSegmenting, setIsSegmenting] = useState(false)
+  const [isExtractingReferences, setIsExtractingReferences] = useState(false)
   const [segmentationError, setSegmentationError] = useState('')
+  const [referenceError, setReferenceError] = useState('')
 
   const handleSegmentationStart = useCallback(() => {
     setIsSegmenting(true)
     setSegmentationError('')
+    setReferenceError('')
+    setReferences([])
     setSentenceAreas([])
   }, [])
 
@@ -42,13 +48,43 @@ function App() {
 
     const runExtraction = async () => {
       try {
-        const references = await runReferenceExtractionGraph(sentenceAreas)
+        setReferenceError('')
+        setIsExtractingReferences(true)
+
+        const finalReferences = await runReferenceExtractionGraph(sentenceAreas, {
+          onReference: (reference) => {
+            if (isCancelled) {
+              return
+            }
+
+            setReferences((current) => {
+              const key = `${reference?.ref_id ?? ''}::${(reference?.title ?? '').trim().toLowerCase()}`
+              const alreadyExists = current.some((item) => {
+                const itemKey = `${item?.ref_id ?? ''}::${(item?.title ?? '').trim().toLowerCase()}`
+                return itemKey === key
+              })
+
+              if (alreadyExists) {
+                return current
+              }
+
+              return [...current, reference]
+            })
+          },
+        })
+
         if (!isCancelled) {
-          console.log('[references] Extraction finished', references)
+          setReferences(finalReferences)
+          console.log('[references] Extraction finished', finalReferences)
         }
       } catch (error) {
         if (!isCancelled) {
+          setReferenceError(error?.message ?? 'Reference extraction failed')
           console.error('[references] Extraction failed', error)
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsExtractingReferences(false)
         }
       }
     }
@@ -114,10 +150,13 @@ function App() {
                 <Separator className="h-1 bg-gray2 rounded" />
 
                 {/* Reference Section */}
-                <Panel defaultSize={50} minSize={20} id="vertical-group-pannel-2" className='h-full w-full bg-bg_shade_1 rounded-xl overflow-auto p-2'>
-                  <h1>References</h1>
+                <Panel defaultSize={50} minSize={20} id="vertical-group-pannel-2" className='h-full w-full '>
+                  <ReferenceSection
+                    references={references}
+                    isExtracting={isExtractingReferences}
+                    error={referenceError}
+                  />
                 </Panel>
-
               </Group>
 
             </Panel>

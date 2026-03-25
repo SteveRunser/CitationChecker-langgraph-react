@@ -2,9 +2,14 @@ import { Annotation, END, START, StateGraph } from '@langchain/langgraph/web';
 import { ChatOpenAI } from '@langchain/openai';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 
+const openAIProxyBaseUrl = new URL('/openai/v1', window.location.origin).toString();
+
 const model = new ChatOpenAI({
     model: 'gpt-5-nano',
-    apiKey: import.meta.env.VITE_OPENAI_API_KEY || import.meta.env.OPENAI_API_KEY,
+    apiKey: 'proxy-auth',
+    configuration: {
+        baseURL: openAIProxyBaseUrl,
+    },
     dangerouslyAllowBrowser: true,
 });
 
@@ -134,18 +139,21 @@ const sentenceAreasToFullText = (sentenceAreas) => {
         .join('\n');
 };
 
-export async function runReferenceExtractionGraph(sentenceAreas) {
+export async function runReferenceExtractionGraph(sentenceAreas, options = {}) {
     const fullText = sentenceAreasToFullText(sentenceAreas);
     if (!fullText.trim()) {
         console.warn('[references] No sentence data available for extraction.');
         return [];
     }
 
+    const onReference = typeof options?.onReference === 'function' ? options.onReference : null;
+
     const initialState = {
         document: fullText,
         references: [],
         onReference: (reference, count) => {
             console.log(`[reference ${count}] id=${reference.ref_id} | ${reference.title}`);
+            onReference?.(reference, count);
         },
     };
 
