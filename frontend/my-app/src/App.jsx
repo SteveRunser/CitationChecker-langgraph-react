@@ -4,6 +4,7 @@ import PdfRenderer from './pdf-renderer'
 import SentenceSegmenter from './sentence-segmenter'
 import ReferenceSection from './reference-section'
 import { runReferenceExtractionGraph } from './graphs/reference-extraction-graph'
+import { runStatementExtractionGraph } from './graphs/statement-extraction-graph'
 import './App.css'
 
 import {
@@ -90,6 +91,42 @@ function App() {
     }
 
     runExtraction()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [sentenceAreas, isSegmenting])
+
+  useEffect(() => {
+    if (isSegmenting || sentenceAreas.length === 0) {
+      return
+    }
+
+    let isCancelled = false
+
+    const runStatementExtraction = async () => {
+      try {
+        const extractedStatements = await runStatementExtractionGraph(sentenceAreas, {
+          onStatement: (statement) => {
+            if (isCancelled) {
+              return
+            }
+
+            console.log('[statements] Streamed', statement)
+          },
+        })
+
+        if (!isCancelled) {
+          console.log('[statements] Extraction finished', extractedStatements)
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          console.error('[statements] Extraction failed', error)
+        }
+      }
+    }
+
+    runStatementExtraction()
 
     return () => {
       isCancelled = true
