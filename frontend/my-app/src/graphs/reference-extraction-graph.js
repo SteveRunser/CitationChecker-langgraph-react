@@ -1,6 +1,7 @@
 import { Annotation, END, START, StateGraph } from '@langchain/langgraph/web';
 import { ChatOpenAI } from '@langchain/openai';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import TurndownService from 'turndown';
 
 const openAIProxyBaseUrl = new URL('/openai/v1', window.location.origin).toString();
 
@@ -12,6 +13,143 @@ const model = new ChatOpenAI({
     },
     dangerouslyAllowBrowser: true,
 });
+
+const CROSSREF_API_URL = 'https://api.crossref.org/works';
+const UNPAYWALL_API_BASE = 'https://api.unpaywall.org/v2';
+const UNPAYWALL_EMAIL = (import.meta.env.VITE_UNPAYWALL_EMAIL ?? '').trim();
+const PAPER_FETCH_PROXY_URL = '/paper-fetch';
+const turndownService = new TurndownService({ headingStyle: 'atx' });
+
+const cleanString = (value) => (typeof value === 'string' ? value.trim() : '');
+
+const htmlToMarkdown = (html) => {
+    if (!html || typeof html !== 'string') {
+        return '';
+    }
+
+    return cleanString(turndownService.turndown(html));
+};
+
+const fetchCrossrefMetadata = async (reference) => {
+    const title = cleanString(reference?.title);
+    if (!title) {
+        return reference;
+    }
+
+    const params = new URLSearchParams({
+        'query.title': title,
+        rows: '5',
+    });
+
+    if (Number.isFinite(Number(reference?.publication_year))) {
+        const year = Number(reference.publication_year);
+        params.set('filter', `from-pub-date:${year}-01-01,until-pub-date:${year}-12-31`);
+    }
+
+    const response = await fetch(`${CROSSREF_API_URL}?${params.toString()}`);
+    if (!response.ok) {
+        return reference;
+    }
+
+    const payload = await response.json();
+    const item = payload?.message?.items?.[0];
+
+    if (!item) {
+        return reference;
+    }
+
+    const containerTitle = item?.['container-title'];
+    const journal = Array.isArray(containerTitle)
+        ? cleanString(containerTitle[0]) || cleanString(reference?.journal)
+        : cleanString(containerTitle) || cleanString(reference?.journal);
+
+    const authors = Array.isArray(item?.author)
+        ? item.author
+            .map((author) => `${cleanString(author?.given)} ${cleanString(author?.family)}`.trim())
+            .filter(Boolean)
+        : [];
+
+    return {
+        ...reference,
+        html_url: cleanString(item?.URL) || reference?.html_url || null,
+        doi: cleanString(item?.DOI) || reference?.doi || null,
+        journal: journal || reference?.journal || '',
+        authors: authors.length > 0 ? authors : reference?.authors ?? null,
+    };
+};
+
+const fetchOpenAccessMetadata = async (reference) => {
+    const doi = cleanString(reference?.doi);
+    if (!doi || !UNPAYWALL_EMAIL) {
+        return reference;
+    }
+
+    const response = await fetch(`${UNPAYWALL_API_BASE}/${encodeURIComponent(doi)}?email=${encodeURIComponent(UNPAYWALL_EMAIL)}`);
+    if (!response.ok) {
+        return reference;
+    }
+
+    const payload = await response.json();
+    const isOpenAccess = Boolean(payload?.is_oa);
+    const bestLocation = payload?.best_oa_location ?? {};
+
+    return {
+        ...reference,
+        is_open_access: isOpenAccess,
+        pdf_url: isOpenAccess ? cleanString(bestLocation?.url_for_pdf) || reference?.pdf_url || null : reference?.pdf_url ?? null,
+        html_url: isOpenAccess ? cleanString(bestLocation?.url_for_landing_page) || reference?.html_url || null : reference?.html_url ?? null,
+    };
+};
+
+const fetchPaperContent = async (reference) => {
+    if (!reference?.is_open_access) {
+        return reference;
+    }
+
+    if (cleanString(reference?.content).length > 5000) {
+        return reference;
+    }
+
+    const htmlUrl = cleanString(reference?.html_url);
+    if (!htmlUrl) {
+        return reference;
+    }
+
+    const proxyUrl = `${PAPER_FETCH_PROXY_URL}?url=${encodeURIComponent(htmlUrl)}`;
+    const response = await fetch(proxyUrl);
+    if (!response.ok) {
+        return reference;
+    }
+
+    const contentType = response.headers.get('content-type') ?? '';
+    if (!contentType.includes('text/html')) {
+        return reference;
+    }
+
+    const html = await response.text();
+    const markdown = htmlToMarkdown(html);
+    if (markdown.length <= 5000) {
+        return reference;
+    }
+
+    return {
+        ...reference,
+        content: markdown,
+    };
+};
+
+const fetchReferenceMetadataOnline = async (reference) => {
+    try {
+        let enrichedReference = { ...reference };
+        enrichedReference = await fetchCrossrefMetadata(enrichedReference);
+        enrichedReference = await fetchOpenAccessMetadata(enrichedReference);
+        enrichedReference = await fetchPaperContent(enrichedReference);
+        return enrichedReference;
+    } catch (error) {
+        console.warn('[references] Metadata enrichment failed', reference?.ref_id, error);
+        return reference;
+    }
+};
 
 const ReferenceExtractionState = Annotation.Root({
     document: Annotation(),
@@ -44,6 +182,10 @@ const normalizeReference = (value) => ({
     authors: Array.isArray(value?.authors) ? value.authors : null,
     publication_year: Number.isFinite(Number(value?.publication_year)) ? Number(value.publication_year) : null,
     doi: typeof value?.doi === 'string' ? value.doi : null,
+    is_open_access: Boolean(value?.is_open_access),
+    pdf_url: typeof value?.pdf_url === 'string' ? value.pdf_url : null,
+    html_url: typeof value?.html_url === 'string' ? value.html_url : null,
+    content: typeof value?.content === 'string' ? value.content : '',
 });
 
 const referenceExtractionNode = async (state) => {
@@ -78,7 +220,7 @@ Each JSON object must follow:
 
     let buffer = '';
 
-    const emitLine = (line) => {
+    const emitLine = async (line) => {
         const trimmed = line.trim().replace(/,$/, '');
         if (!trimmed) return;
 
@@ -91,8 +233,9 @@ Each JSON object must follow:
             if (seen.has(key)) return;
 
             seen.add(key);
-            references.push(reference);
-            onReference?.(reference, references.length);
+            const enrichedReference = normalizeReference(await fetchReferenceMetadataOnline(reference));
+            references.push(enrichedReference);
+            onReference?.(enrichedReference, references.length);
         } catch {
             // Ignore non-JSON lines while streaming.
         }
@@ -107,11 +250,11 @@ Each JSON object must follow:
             const newlineIndex = buffer.indexOf('\n');
             const line = buffer.slice(0, newlineIndex);
             buffer = buffer.slice(newlineIndex + 1);
-            emitLine(line);
+            await emitLine(line);
         }
     }
 
-    emitLine(buffer);
+    await emitLine(buffer);
     return { references };
 };
 
