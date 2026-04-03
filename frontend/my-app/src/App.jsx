@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import PdfRenderer from './pdf-renderer'
 import SentenceSegmenter from './sentence-segmenter'
 import ReferenceSection from './reference-section'
+import StatementSection from './statement-section'
 import { runReferenceExtractionGraph } from './graphs/reference-extraction-graph'
 import { runStatementExtractionGraph } from './graphs/statement-extraction-graph'
 import './App.css'
@@ -13,24 +14,116 @@ import {
   Separator,
 } from "react-resizable-panels";
 
+const DEV_EXTRACTION_CACHE_ENABLED = true
+
+const getCacheFileName = (type, pdfPath) => {
+  const safePdfName = (pdfPath ?? 'document').replace(/[^a-z0-9]/gi, '_').toLowerCase()
+  return `${safePdfName}_${type}.json`
+}
+
+const readJsonFromLocalStorage = (key) => {
+  try {
+    const rawValue = window.localStorage.getItem(key)
+    return rawValue ? JSON.parse(rawValue) : null
+  } catch {
+    return null
+  }
+}
+
+const writeJsonToLocalStorage = (key, value) => {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value))
+    return true
+  } catch {
+    return false
+  }
+}
+
+const readJsonFromOpfs = async (fileName) => {
+  if (typeof navigator === 'undefined' || !navigator.storage?.getDirectory) {
+    return null
+  }
+
+  try {
+    const rootDirectory = await navigator.storage.getDirectory()
+    const fileHandle = await rootDirectory.getFileHandle(fileName)
+    const file = await fileHandle.getFile()
+    const rawText = await file.text()
+    return rawText ? JSON.parse(rawText) : null
+  } catch {
+    return null
+  }
+}
+
+const writeJsonToOpfs = async (fileName, value) => {
+  if (typeof navigator === 'undefined' || !navigator.storage?.getDirectory) {
+    return false
+  }
+
+  try {
+    const rootDirectory = await navigator.storage.getDirectory()
+    const fileHandle = await rootDirectory.getFileHandle(fileName, { create: true })
+    const writable = await fileHandle.createWritable()
+    await writable.write(JSON.stringify(value, null, 2))
+    await writable.close()
+    return true
+  } catch {
+    return false
+  }
+}
+
+const loadCachedExtraction = async (type, pdfPath) => {
+  if (!DEV_EXTRACTION_CACHE_ENABLED) {
+    return null
+  }
+
+  const fileName = getCacheFileName(type, pdfPath)
+  const localStorageKey = `citation_checker_cache_${fileName}`
+  const opfsValue = await readJsonFromOpfs(fileName)
+
+  if (opfsValue) {
+    return opfsValue
+  }
+
+  return readJsonFromLocalStorage(localStorageKey)
+}
+
+const saveCachedExtraction = async (type, pdfPath, value) => {
+  if (!DEV_EXTRACTION_CACHE_ENABLED) {
+    return
+  }
+
+  const fileName = getCacheFileName(type, pdfPath)
+  const localStorageKey = `citation_checker_cache_${fileName}`
+  const wroteToOpfs = await writeJsonToOpfs(fileName, value)
+
+  if (!wroteToOpfs) {
+    writeJsonToLocalStorage(localStorageKey, value)
+  }
+}
+
 function App() {
   const pdfFilePath = '/simucell3d-nat-comp-sci-paper.pdf'
   const [sentenceAreas, setSentenceAreas] = useState([])
+  const [statements, setStatements] = useState([])
   const [references, setReferences] = useState([])
   const [isSegmenting, setIsSegmenting] = useState(false)
+  const [isExtractingStatements, setIsExtractingStatements] = useState(false)
   const [isExtractingReferences, setIsExtractingReferences] = useState(false)
   const [segmentationError, setSegmentationError] = useState('')
+  const [statementError, setStatementError] = useState('')
   const [referenceError, setReferenceError] = useState('')
 
   const handleSegmentationStart = useCallback(() => {
     setIsSegmenting(true)
     setSegmentationError('')
+    setStatementError('')
     setReferenceError('')
-    setReferences([])
-    setSentenceAreas([])
   }, [])
 
   const handleSegmentationComplete = useCallback((segmentedAreas) => {
+    setStatements([])
+    setReferences([])
     setSentenceAreas(segmentedAreas ?? [])
     setIsSegmenting(false)
   }, [])
@@ -51,6 +144,13 @@ function App() {
       try {
         setReferenceError('')
         setIsExtractingReferences(true)
+
+        const cachedReferences = await loadCachedExtraction('references', pdfFilePath)
+        if (!isCancelled && Array.isArray(cachedReferences)) {
+          setReferences(cachedReferences)
+          console.log('[references] Loaded from cache', cachedReferences)
+          return
+        }
 
         const finalReferences = await runReferenceExtractionGraph(sentenceAreas, {
           onReference: (reference) => {
@@ -76,6 +176,7 @@ function App() {
 
         if (!isCancelled) {
           setReferences(finalReferences)
+          await saveCachedExtraction('references', pdfFilePath, finalReferences)
           console.log('[references] Extraction finished', finalReferences)
         }
       } catch (error) {
@@ -106,22 +207,53 @@ function App() {
 
     const runStatementExtraction = async () => {
       try {
+        setStatementError('')
+        setIsExtractingStatements(true)
+
+        const cachedStatements = await loadCachedExtraction('statements', pdfFilePath)
+        if (!isCancelled && Array.isArray(cachedStatements)) {
+          setStatements(cachedStatements)
+          console.log('[statements] Loaded from cache', cachedStatements)
+          return
+        }
+
         const extractedStatements = await runStatementExtractionGraph(sentenceAreas, {
           onStatement: (statement) => {
             if (isCancelled) {
               return
             }
 
+            setStatements((current) => {
+              const key = `${statement?.sentence_id ?? ''}::${(statement?.claim ?? '').trim().toLowerCase()}`
+              const alreadyExists = current.some((item) => {
+                const itemKey = `${item?.sentence_id ?? ''}::${(item?.claim ?? '').trim().toLowerCase()}`
+                return itemKey === key
+              })
+
+              if (alreadyExists) {
+                return current
+              }
+
+              return [...current, statement]
+            })
+
             console.log('[statements] Streamed', statement)
           },
         })
 
         if (!isCancelled) {
+          setStatements(extractedStatements)
+          await saveCachedExtraction('statements', pdfFilePath, extractedStatements)
           console.log('[statements] Extraction finished', extractedStatements)
         }
       } catch (error) {
         if (!isCancelled) {
+          setStatementError(error?.message ?? 'Statement extraction failed')
           console.error('[statements] Extraction failed', error)
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsExtractingStatements(false)
         }
       }
     }
@@ -178,9 +310,11 @@ function App() {
 
                 {/* Statement Section */}
                 <Panel defaultSize={50} minSize={20} id="vertical-group-pannel-1" className='h-full w-full bg-bg_shade_1 rounded-xl overflow-auto p-2'>
-                  <h1>Statements</h1>
-                  <p>{isSegmenting ? 'Segmenting sentences…' : `Detected segments: ${sentenceAreas.length}`}</p>
-                  {segmentationError ? <p>{segmentationError}</p> : null}
+                  <StatementSection
+                    statements={statements}
+                    isExtracting={isExtractingStatements}
+                    error={statementError || segmentationError}
+                  />
 
                 </Panel>
 

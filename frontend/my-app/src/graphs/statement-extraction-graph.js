@@ -17,6 +17,10 @@ const MAX_CONCURRENCY = 20;
 const modelOutputSchema = {
     type: 'object',
     properties: {
+        title: {
+            type: 'string',
+            description: 'A small title for the claim, ideally less than 5 words.',
+        },
         claim: {
             type: 'string',
             description: 'One sentence summary of the scientific claim. Empty string if no claim.',
@@ -27,7 +31,7 @@ const modelOutputSchema = {
             description: 'Citation numbers associated with the claim.',
         },
     },
-    required: ['claim', 'citations'],
+    required: ['claim', 'citations', 'title'],
     additionalProperties: false,
 };
 
@@ -107,12 +111,15 @@ Rules:
             .filter((value) => Number.isInteger(value) && value > 0)
         : [];
 
+    const title = typeof result?.title === 'string' ? result.title.trim() : '';
+
     if (!claim || citations.length === 0) {
         return { statements: [] };
     }
 
     const statement = {
         claim,
+        title,
         sentence_id: sentenceId,
         citations,
         verification_result: 'Unverified',

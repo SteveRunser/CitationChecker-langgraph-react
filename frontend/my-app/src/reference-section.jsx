@@ -48,14 +48,43 @@ function ReferenceSection({ references = [], isExtracting = false, error = '' })
 
 const ReferenceCard = ({ reference }) => {
   const hasDownloadedContent = Boolean(reference?.is_open_access && reference?.content)
+  const hasDoi = Boolean(reference?.doi)
+  const doiUrl = hasDoi ? `https://doi.org/${reference.doi}` : null
+
+  const handleCardClick = () => {
+    if (!doiUrl) {
+      return
+    }
+
+    window.open(doiUrl, '_blank', 'noopener,noreferrer')
+  }
+
+  const handleCardKeyDown = (event) => {
+    if (!doiUrl) {
+      return
+    }
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      handleCardClick()
+    }
+  }
 
   return (
-    <article className="w-full rounded-lg border border-text_shade_1 p-3">
+    <article
+      className={`w-full rounded-lg border border-text_shade_1 p-3 transition-all duration-200 ${hasDoi ? 'cursor-pointer hover:shadow-xl hover:translate-x-1 hover:-translate-y-1 focus-visible:shadow-md focus-visible:translate-x-0.5 focus-visible:-translate-y-0.5 focus-visible:outline-none' : ''}`}
+      onClick={handleCardClick}
+      onKeyDown={handleCardKeyDown}
+      role={hasDoi ? 'button' : undefined}
+      tabIndex={hasDoi ? 0 : undefined}
+      aria-label={hasDoi ? `Open DOI link for ${reference?.title || 'reference'}` : undefined}
+      title={hasDoi ? `Open ${doiUrl}` : undefined}
+    >
       <p className="font-semibold flex items-center gap-2">
 
         {/* Small circle indicating if the paper is open access with downloaded content (green) or not (red).  */}
         <span
-          className={`inline-block h-3 w-3 rounded-full ${hasDownloadedContent ? 'bg-green-500/50' : 'bg-red-500/50'}`}
+          className={`inline-block h-3 w-3 shrink-0 flex-none  rounded-full ${hasDownloadedContent ? 'bg-green-500/50' : 'bg-red-500/50'}`}
           aria-label={hasDownloadedContent ? 'reference content available' : 'reference content unavailable'}
           title={hasDownloadedContent ? 'Open access with downloaded content' : 'No downloaded content'}
         />
