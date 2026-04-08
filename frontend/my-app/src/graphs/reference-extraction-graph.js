@@ -268,11 +268,17 @@ const graph = builder.compile();
 const sentenceAreasToFullText = (sentenceAreas) => {
     const sentenceMap = new Map();
     for (const token of sentenceAreas ?? []) {
-        if (token?.sentenceId === undefined || typeof token?.sentence !== 'string') {
+        const sentenceId = token?.sentenceId ?? token?.id;
+        const sentenceText = typeof token?.sentence === 'string'
+            ? token.sentence
+            : (typeof token?.text === 'string' ? token.text : '');
+
+        if (sentenceId === undefined || !sentenceText) {
             continue;
         }
-        if (!sentenceMap.has(token.sentenceId)) {
-            sentenceMap.set(token.sentenceId, token.sentence.replace(/\n/g, ' '));
+
+        if (!sentenceMap.has(sentenceId)) {
+            sentenceMap.set(sentenceId, sentenceText.replace(/\n/g, ' '));
         }
     }
 

@@ -69,21 +69,24 @@ const fanOutStatementExtractionNode = (state) => {
 
 const statementExtractionNode = async (state) => {
     const sentenceId = Number(state?.sentence_id);
-    const sentence = typeof state?.sentence === 'string' ? state.sentence : '';
-    const sentences = state?.sentences ?? {};
     const onStatement = typeof state?.onStatement === 'function' ? state.onStatement : null;
 
-    if (!sentence) {
+    const sentence = state?.sentence;
+    const sentences = state?.sentences ?? {};
+
+    // Extract the previous, current, and next sentences for context, ensuring they are strings
+    const previousSentenceText = typeof sentences[sentenceId - 1]?.text === 'string' ? sentences[sentenceId - 1].text : '';
+    const currentSentenceText = typeof state?.sentence?.text === 'string' ? state.sentence.text : '';
+    const nextSentenceText = typeof sentences[sentenceId + 1]?.text === 'string' ? sentences[sentenceId + 1].text : '';
+    const surroundingText = `${previousSentenceText} ${currentSentenceText} ${nextSentenceText}`.trim();
+
+    if (!currentSentenceText) {
         return { statements: [] };
     }
 
-    const previousSentence = typeof sentences[sentenceId - 1] === 'string' ? sentences[sentenceId - 1] : '';
-    const nextSentence = typeof sentences[sentenceId + 1] === 'string' ? sentences[sentenceId + 1] : '';
-    const surroundingText = `${previousSentence} ${sentence} ${nextSentence}`.trim();
-
     const prompt = `
 Given the following sentence:
-${sentence}
+${currentSentenceText}
 
 If this sentence contains a scientific statement supported by one or several citations,
 extract its associated citations and make a one-line summary of the claim being made.
@@ -102,25 +105,32 @@ Rules:
 - no numbering
 `;
 
+    // Invoke the model
     const result = await structuredModel.invoke(prompt);
 
+    // Extract the summary of the claim
     const claim = typeof result?.claim === 'string' ? result.claim.trim() : null;
+
+    // Extract the title of the statement
+    const title = typeof result?.title === 'string' ? result.title.trim() : '';
+
+    // Extract the citation numbers as an array of integers
     const citations = Array.isArray(result?.citations)
         ? result.citations
             .map((value) => Number(value))
             .filter((value) => Number.isInteger(value) && value > 0)
         : [];
 
-    const title = typeof result?.title === 'string' ? result.title.trim() : '';
-
+    // If there is no claim or no citations, return nothing for this sentence
     if (!claim || citations.length === 0) {
         return { statements: [] };
     }
 
+    // Construct the statement object
     const statement = {
         claim,
         title,
-        sentence_id: sentenceId,
+        sentence: sentence,
         citations,
         verification_result: 'Unverified',
     };
@@ -135,26 +145,8 @@ const statementExtractionGraph = new StateGraph(StatementExtractionState)
     .addEdge('statement_extraction_node', END)
     .compile();
 
-const sentenceAreasToSentences = (sentenceAreas) => {
-    const sentenceMap = new Map();
 
-    for (const token of sentenceAreas ?? []) {
-        if (token?.sentenceId === undefined || typeof token?.sentence !== 'string') {
-            continue;
-        }
-
-        if (!sentenceMap.has(token.sentenceId)) {
-            sentenceMap.set(token.sentenceId, token.sentence.replace(/\n/g, ' '));
-        }
-    }
-
-    return Object.fromEntries(
-        [...sentenceMap.entries()].sort((a, b) => Number(a[0]) - Number(b[0]))
-    );
-};
-
-export async function runStatementExtractionGraph(sentenceAreas, options = {}) {
-    const sentences = sentenceAreasToSentences(sentenceAreas);
+export async function runStatementExtractionGraph(sentences, options = {}) {
     const sentenceCount = Object.keys(sentences).length;
 
     if (sentenceCount === 0) {
@@ -172,7 +164,7 @@ export async function runStatementExtractionGraph(sentenceAreas, options = {}) {
             sentences,
             statements: [],
             onStatement: (statement) => {
-                console.log(`[statement] sentence=${statement.sentence_id} | ${statement.claim}`);
+                console.log(`[statement] sentence=${statement?.sentence?.id ?? 'unknown'} | ${statement.claim}`);
                 onStatement?.(statement);
             },
         },

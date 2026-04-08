@@ -14,7 +14,8 @@ import {
   Separator,
 } from "react-resizable-panels";
 
-const DEV_EXTRACTION_CACHE_ENABLED = true
+const DEV_EXTRACTION_CACHE_READ_ENABLED = false
+const DEV_EXTRACTION_CACHE_WRITE_ENABLED = true
 
 const getCacheFileName = (type, pdfPath) => {
   const safePdfName = (pdfPath ?? 'document').replace(/[^a-z0-9]/gi, '_').toLowerCase()
@@ -73,7 +74,7 @@ const writeJsonToOpfs = async (fileName, value) => {
 }
 
 const loadCachedExtraction = async (type, pdfPath) => {
-  if (!DEV_EXTRACTION_CACHE_ENABLED) {
+  if (!DEV_EXTRACTION_CACHE_READ_ENABLED) {
     return null
   }
 
@@ -89,7 +90,7 @@ const loadCachedExtraction = async (type, pdfPath) => {
 }
 
 const saveCachedExtraction = async (type, pdfPath, value) => {
-  if (!DEV_EXTRACTION_CACHE_ENABLED) {
+  if (!DEV_EXTRACTION_CACHE_WRITE_ENABLED) {
     return
   }
 
@@ -104,16 +105,38 @@ const saveCachedExtraction = async (type, pdfPath, value) => {
 
 function App() {
   const pdfFilePath = '/simucell3d-nat-comp-sci-paper.pdf'
-  const [sentenceAreas, setSentenceAreas] = useState([])
+
+  //---------------------------------------------------------------------------------------------
+  // Sentences are as their name indicate sentences that have been extracted from the text of the
+  // PDF. In addition of containing text, they also contain the token that constitute them. These 
+  // tokens can be used to link back the sentences to the original PDF text and position. 
+  const [sentences, setSentences] = useState([])
+
+  // Statements are special sentences that have been identified as containing a claim. 
+  // They contain the underlying sentence object, but also a summary of the claim, 
+  // the validation status of the claim and the citations that support this claim.
   const [statements, setStatements] = useState([])
+
+  // References as their names indicate contain all the data related to the references cited in the paper. 
+  // They contain the reference id, title, authors and other metadata when available.
   const [references, setReferences] = useState([])
+
+  // The following state variables are used to keep track of the loading and error status of the different steps of the pipeline.
   const [isSegmenting, setIsSegmenting] = useState(false)
   const [isExtractingStatements, setIsExtractingStatements] = useState(false)
   const [isExtractingReferences, setIsExtractingReferences] = useState(false)
+
+  // These states are used to display loading indicators and error messages in the UI, 
+  // and to prevent certain actions from being triggered while a step is in progress.
   const [segmentationError, setSegmentationError] = useState('')
   const [statementError, setStatementError] = useState('')
   const [referenceError, setReferenceError] = useState('')
+  //---------------------------------------------------------------------------------------------
 
+
+  //---------------------------------------------------------------------------------------------
+  // Callback to handle the start of the sentence segmentation process. 
+  // It sets the isSegmenting state to true and clears any previous errors.
   const handleSegmentationStart = useCallback(() => {
     setIsSegmenting(true)
     setSegmentationError('')
@@ -121,20 +144,30 @@ function App() {
     setReferenceError('')
   }, [])
 
-  const handleSegmentationComplete = useCallback((segmentedAreas) => {
+  // Callback to handle the completion of the sentence segmentation process.
+  // It receives the segmented sentences as an argument, updates the sentences state, and sets isSegmenting to false.
+  // It also clears the statements and references states to prepare for the next steps of the pipeline.
+  const handleSegmentationComplete = useCallback((segmentedSentences) => {
     setStatements([])
     setReferences([])
-    setSentenceAreas(segmentedAreas ?? [])
+    setSentences(segmentedSentences ?? [])
     setIsSegmenting(false)
   }, [])
 
+  //Callback to handle any errors that occur during the sentence segmentation process.
   const handleSegmentationError = useCallback((error) => {
     setSegmentationError(error?.message ?? 'Sentence segmentation failed')
     setIsSegmenting(false)
   }, [])
+  //---------------------------------------------------------------------------------------------
 
+
+  //---------------------------------------------------------------------------------------------
+  // The following useEffect hook is responsible for running the reference 
+  // extraction processes whenever the sentences state is updated and the segmentation process 
+  // is not currently running. 
   useEffect(() => {
-    if (isSegmenting || sentenceAreas.length === 0) {
+    if (isSegmenting || sentences.length === 0) {
       return
     }
 
@@ -145,14 +178,8 @@ function App() {
         setReferenceError('')
         setIsExtractingReferences(true)
 
-        const cachedReferences = await loadCachedExtraction('references', pdfFilePath)
-        if (!isCancelled && Array.isArray(cachedReferences)) {
-          setReferences(cachedReferences)
-          console.log('[references] Loaded from cache', cachedReferences)
-          return
-        }
-
-        const finalReferences = await runReferenceExtractionGraph(sentenceAreas, {
+        // Run the reference extraction graph with the segmented sentences and a callback to handle each extracted reference in real time.
+        const finalReferences = await runReferenceExtractionGraph(sentences, {
           onReference: (reference) => {
             if (isCancelled) {
               return
@@ -176,8 +203,6 @@ function App() {
 
         if (!isCancelled) {
           setReferences(finalReferences)
-          await saveCachedExtraction('references', pdfFilePath, finalReferences)
-          console.log('[references] Extraction finished', finalReferences)
         }
       } catch (error) {
         if (!isCancelled) {
@@ -196,28 +221,23 @@ function App() {
     return () => {
       isCancelled = true
     }
-  }, [sentenceAreas, isSegmenting])
+  }, [sentences, isSegmenting])
+  //---------------------------------------------------------------------------------------------
 
+
+  //---------------------------------------------------------------------------------------------
+  // This useEffect hook is responsible for running the statement extraction.
   useEffect(() => {
-    if (isSegmenting || sentenceAreas.length === 0) {
+    if (isSegmenting || sentences.length === 0) {
       return
     }
-
     let isCancelled = false
-
     const runStatementExtraction = async () => {
       try {
         setStatementError('')
         setIsExtractingStatements(true)
 
-        const cachedStatements = await loadCachedExtraction('statements', pdfFilePath)
-        if (!isCancelled && Array.isArray(cachedStatements)) {
-          setStatements(cachedStatements)
-          console.log('[statements] Loaded from cache', cachedStatements)
-          return
-        }
-
-        const extractedStatements = await runStatementExtractionGraph(sentenceAreas, {
+        const extractedStatements = await runStatementExtractionGraph(sentences, {
           onStatement: (statement) => {
             if (isCancelled) {
               return
@@ -243,7 +263,6 @@ function App() {
 
         if (!isCancelled) {
           setStatements(extractedStatements)
-          await saveCachedExtraction('statements', pdfFilePath, extractedStatements)
           console.log('[statements] Extraction finished', extractedStatements)
         }
       } catch (error) {
@@ -263,8 +282,11 @@ function App() {
     return () => {
       isCancelled = true
     }
-  }, [sentenceAreas, isSegmenting])
+  }, [sentences, isSegmenting])
+  //---------------------------------------------------------------------------------------------
 
+
+  //---------------------------------------------------------------------------------------------
   return (
     <>
       <div className="w-screen h-screen flex flex-col items-center justify-center bg-bg_shade_3">
@@ -290,7 +312,7 @@ function App() {
               minSize={20}
               className="h-full w-full bg-bg_shade_1 rounded-xl overflow-auto p-2" 
             >
-              <PdfRenderer pdfFilePath={pdfFilePath} highlights={sentenceAreas} />
+              <PdfRenderer pdfFilePath={pdfFilePath} statements={statements} />
             </Panel>
 
             <Separator className="w-1 bg-gray2 rounded" />

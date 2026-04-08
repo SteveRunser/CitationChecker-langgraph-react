@@ -36,7 +36,6 @@ function StatementSection({ statements = [], isExtracting = false, error = '' })
 }
 
 const StatementCard = ({ statement }) => {
-	const isSupported = statement?.verification_result === 'Supported'
 
 	let cardStatusColor = "";
 	switch (statement?.verification_result) {
@@ -63,7 +62,7 @@ const StatementCard = ({ statement }) => {
 				<span className={`inline-block h-3 w-3 shrink-0 flex-none rounded-full ${cardStatusColor}`}></span>
 
 				{/* The id of the statement */}
-				<span>{`[${statement?.sentence_id ?? 'Unknown ID'}]`}</span>
+				<span>{`[${statement?.sentence.id ?? 'Unknown ID'}]`}</span>
 
 				{/* The title of the claim */}
 				<span>{`- ${statement?.title ?? null}`}</span>
