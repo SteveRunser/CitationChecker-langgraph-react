@@ -22,8 +22,10 @@ function StatementSection({ statements = [], handleStatementClick=null, selected
 
 	return (
 		<div className="w-full h-full flex flex-col bg-bg_shade_1 rounded-xl overflow-auto gap-2">
-			<div id="statement-header" className="flex flex-row w-full items-center justify-between px-4 py-2">
-				<div className="flex flex-row items-center gap-2">
+			
+      <div id="statement-header" className="flex flex-row w-full items-center justify-between px-4 py-2 border-b border-text_shade_1 border-05 ">
+        
+				<div className="flex flex-row items-center gap-2 mx-2 my-1">
 					<FileText size={24} className="text-text_shade_3" />
 					<h1 className="text-2xl font-semibold">Statements</h1>
 				</div>
