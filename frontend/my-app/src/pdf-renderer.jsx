@@ -7,7 +7,8 @@ import '@react-pdf-viewer/highlight/lib/styles/index.css';
 
 
 
-function PdfRenderer({ pdfFilePath, statements=[] }) {
+function PdfRenderer({ pdfFilePath, onStatementClick, statements=[], selectedStatement=null}) {
+
 
 
   // Color the sentences that belong to statements based on their verification result
@@ -43,9 +44,13 @@ function PdfRenderer({ pdfFilePath, statements=[] }) {
                 <div
                   key={`${sentence?.id ?? statementIndex}-${tokenIndex}`}
                   title={sentence?.text ?? ''}
+                  onClick={onStatementClick ? () => onStatementClick(statement) : undefined}
                   style={{
                     ...props.getCssProperties(token, props.rotation),
-                    backgroundColor: `rgba(${getStatementColor(statement?.verification_result)}, 0.5)`,
+                    pointerEvents: 'auto',
+                    cursor: onStatementClick ? 'pointer' : 'default',
+                    zIndex: 2,
+                    backgroundColor: `rgba(${getStatementColor(statement?.verification_result)}, ${selectedStatement != null && statement?.sentence?.id === selectedStatement?.sentence?.id ? 0.5 : 0.25})`,
                   }}
                 />
               ));

@@ -106,6 +106,7 @@ const saveCachedExtraction = async (type, pdfPath, value) => {
 function App() {
   const pdfFilePath = '/simucell3d-nat-comp-sci-paper.pdf'
 
+
   //---------------------------------------------------------------------------------------------
   // Sentences are as their name indicate sentences that have been extracted from the text of the
   // PDF. In addition of containing text, they also contain the token that constitute them. These 
@@ -116,6 +117,7 @@ function App() {
   // They contain the underlying sentence object, but also a summary of the claim, 
   // the validation status of the claim and the citations that support this claim.
   const [statements, setStatements] = useState([])
+  const [selectedStatement, setSelectedStatement] = useState(null)
 
   // References as their names indicate contain all the data related to the references cited in the paper. 
   // They contain the reference id, title, authors and other metadata when available.
@@ -149,9 +151,20 @@ function App() {
   // It also clears the statements and references states to prepare for the next steps of the pipeline.
   const handleSegmentationComplete = useCallback((segmentedSentences) => {
     setStatements([])
+    setSelectedStatement(null)
     setReferences([])
     setSentences(segmentedSentences ?? [])
     setIsSegmenting(false)
+  }, [])
+
+
+  // Callback to handle the click on a statement. 
+  const handleStatementClick = useCallback((statement) => {
+    setSelectedStatement(statement);
+
+    console.log('Statement clicked:', statement);
+
+
   }, [])
 
   //Callback to handle any errors that occur during the sentence segmentation process.
@@ -223,6 +236,8 @@ function App() {
     }
   }, [sentences, isSegmenting])
   //---------------------------------------------------------------------------------------------
+
+
 
 
   //---------------------------------------------------------------------------------------------
@@ -312,7 +327,12 @@ function App() {
               minSize={20}
               className="h-full w-full bg-bg_shade_1 rounded-xl overflow-auto p-2" 
             >
-              <PdfRenderer pdfFilePath={pdfFilePath} statements={statements} />
+              <PdfRenderer
+                pdfFilePath={pdfFilePath}
+                statements={statements}
+                selectedStatement={selectedStatement}
+                onStatementClick={handleStatementClick}
+              />
             </Panel>
 
             <Separator className="w-1 bg-gray2 rounded" />
