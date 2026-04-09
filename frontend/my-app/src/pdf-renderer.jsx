@@ -1,13 +1,16 @@
 import { Viewer, Worker } from '@react-pdf-viewer/core';
 import { highlightPlugin, Trigger } from '@react-pdf-viewer/highlight';
+import { defaultLayoutPlugin } from '@react-pdf-viewer/default-layout';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url';
 import '@react-pdf-viewer/core/lib/styles/index.css';
 import '@react-pdf-viewer/highlight/lib/styles/index.css';
+import '@react-pdf-viewer/default-layout/lib/styles/index.css';
 
 
 
 
 function PdfRenderer({ pdfFilePath, onStatementClick, statements=[], selectedStatement=null}) {
+  const defaultLayoutPluginInstance = defaultLayoutPlugin();
 
   const rawSelectedPageIndex = selectedStatement?.sentence?.tokens?.at?.(0)?.pageIndex;
   const selectedPageIndex = Number.isFinite(Number(rawSelectedPageIndex)) ? Number(rawSelectedPageIndex) : null;
@@ -68,7 +71,7 @@ function PdfRenderer({ pdfFilePath, onStatementClick, statements=[], selectedSta
           key={viewerKey}
           fileUrl={pdfFilePath}
           initialPage={typeof selectedPageIndex === 'number' && selectedPageIndex >= 0 ? selectedPageIndex : 0}
-          plugins={[highlightPluginInstance]}
+          plugins={[defaultLayoutPluginInstance, highlightPluginInstance]}
         />
       </Worker>
     </div>

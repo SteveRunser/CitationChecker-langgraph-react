@@ -100,7 +100,7 @@ const StatementCard = ({ statement, selectedStatement, onClick, elementRef }) =>
 	return (
 		<article
 			ref={elementRef}
-			className={`w-full rounded-lg border ${isSelected ?  "border-blue-500/50 border-2" : "border-text_shade_1" } p-3 flex flex-col gap-1 ${onClick ? 'cursor-pointer' : ''}`}
+			className={`w-full transition-all duration-200 rounded-lg border ${isSelected ?  "border-blue-500/50 border-2" : "border-text_shade_1" } p-3 flex flex-col gap-1 ${onClick ? 'cursor-pointer' : ''} cursor-pointer hover:shadow-xl hover:translate-x-1 hover:-translate-y-1 focus-visible:shadow-md focus-visible:translate-x-0.5 focus-visible:-translate-y-0.5 focus-visible:outline-none`}
 			onClick={onClick}
 		>
 			<p className="font-semibold flex items-center gap-2">
