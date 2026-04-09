@@ -14,7 +14,7 @@ import {
   Separator,
 } from "react-resizable-panels";
 
-const DEV_EXTRACTION_CACHE_READ_ENABLED = false
+const DEV_EXTRACTION_CACHE_READ_ENABLED = true
 const DEV_EXTRACTION_CACHE_WRITE_ENABLED = true
 
 const getCacheFileName = (type, pdfPath) => {
@@ -97,9 +97,10 @@ const saveCachedExtraction = async (type, pdfPath, value) => {
   const fileName = getCacheFileName(type, pdfPath)
   const localStorageKey = `citation_checker_cache_${fileName}`
   const wroteToOpfs = await writeJsonToOpfs(fileName, value)
+  const wroteToLocalStorage = writeJsonToLocalStorage(localStorageKey, value)
 
-  if (!wroteToOpfs) {
-    writeJsonToLocalStorage(localStorageKey, value)
+  if (!wroteToOpfs && !wroteToLocalStorage) {
+    console.warn(`[cache] Failed to save ${type} cache for ${pdfPath}`)
   }
 }
 
@@ -189,6 +190,13 @@ function App() {
     const runExtraction = async () => {
       try {
         setReferenceError('')
+        const cachedReferences = await loadCachedExtraction('references', pdfFilePath)
+
+        if (!isCancelled && cachedReferences !== null) {
+          setReferences(Array.isArray(cachedReferences) ? cachedReferences : [])
+          return
+        }
+
         setIsExtractingReferences(true)
 
         // Run the reference extraction graph with the segmented sentences and a callback to handle each extracted reference in real time.
@@ -216,6 +224,7 @@ function App() {
 
         if (!isCancelled) {
           setReferences(finalReferences)
+          await saveCachedExtraction('references', pdfFilePath, finalReferences)
         }
       } catch (error) {
         if (!isCancelled) {
@@ -234,7 +243,7 @@ function App() {
     return () => {
       isCancelled = true
     }
-  }, [sentences, isSegmenting])
+  }, [sentences, isSegmenting, pdfFilePath])
   //---------------------------------------------------------------------------------------------
 
 
@@ -250,6 +259,13 @@ function App() {
     const runStatementExtraction = async () => {
       try {
         setStatementError('')
+        const cachedStatements = await loadCachedExtraction('statements', pdfFilePath)
+
+        if (!isCancelled && cachedStatements !== null) {
+          setStatements(Array.isArray(cachedStatements) ? cachedStatements : [])
+          return
+        }
+
         setIsExtractingStatements(true)
 
         const extractedStatements = await runStatementExtractionGraph(sentences, {
@@ -278,6 +294,7 @@ function App() {
 
         if (!isCancelled) {
           setStatements(extractedStatements)
+          await saveCachedExtraction('statements', pdfFilePath, extractedStatements)
           console.log('[statements] Extraction finished', extractedStatements)
         }
       } catch (error) {
@@ -297,7 +314,7 @@ function App() {
     return () => {
       isCancelled = true
     }
-  }, [sentences, isSegmenting])
+  }, [sentences, isSegmenting, pdfFilePath])
   //---------------------------------------------------------------------------------------------
 
 
