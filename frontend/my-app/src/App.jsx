@@ -162,10 +162,7 @@ function App() {
   // Callback to handle the click on a statement. 
   const handleStatementClick = useCallback((statement) => {
     setSelectedStatement(statement);
-
     console.log('Statement clicked:', statement);
-
-
   }, [])
 
   //Callback to handle any errors that occur during the sentence segmentation process.
@@ -371,6 +368,8 @@ function App() {
                 <Panel defaultSize={50} minSize={20} id="vertical-group-pannel-1" className='h-full w-full bg-bg_shade_1 rounded-xl overflow-auto p-2'>
                   <StatementSection
                     statements={statements}
+                    handleStatementClick={handleStatementClick}
+                    selectedStatement={selectedStatement}
                     isExtracting={isExtractingStatements}
                     error={statementError || segmentationError}
                   />

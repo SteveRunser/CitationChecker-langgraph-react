@@ -1,6 +1,25 @@
+import { useEffect, useRef } from 'react'
 import { FileText, LoaderCircle } from 'lucide-react'
 
-function StatementSection({ statements = [], isExtracting = false, error = '' }) {
+function StatementSection({ statements = [], handleStatementClick=null, selectedStatement=null, isExtracting = false, error = '' }) {
+	const statementElementRefs = useRef({})
+
+	const getStatementId = (statement) => statement?.id ?? statement?.sentence?.id ?? statement?.sentence_id ?? null
+
+	useEffect(() => {
+		const selectedId = getStatementId(selectedStatement)
+
+		if (!selectedId) {
+			return
+		}
+
+		const selectedElement = statementElementRefs.current[selectedId]
+
+		if (selectedElement) {
+			selectedElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+		}
+	}, [selectedStatement, statements])
+
 	return (
 		<div className="w-full h-full flex flex-col bg-bg_shade_1 rounded-xl overflow-auto gap-2">
 			<div id="statement-header" className="flex flex-row w-full items-center justify-between px-4 py-2">
@@ -28,14 +47,36 @@ function StatementSection({ statements = [], isExtracting = false, error = '' })
 						{isExtracting ? 'Extracting statements. This may take a few minutes.' : 'No statements yet.'}
 					</p>
 				) : (
-					statements.map((statement, index) => <StatementCard key={index} statement={statement} />)
+					statements.map((statement, index) => {
+						const statementId = getStatementId(statement)
+
+						return (
+						<StatementCard
+							key={index}
+							statement={statement}
+							selectedStatement={selectedStatement}
+							elementRef={(element) => {
+								if (!statementId) {
+									return
+								}
+
+								if (element) {
+									statementElementRefs.current[statementId] = element
+								} else {
+									delete statementElementRefs.current[statementId]
+								}
+							}}
+							onClick={handleStatementClick ? () => handleStatementClick(statement) : undefined}
+						/>
+						)
+					})
 				)}
 			</div>
 		</div>
 	)
 }
 
-const StatementCard = ({ statement }) => {
+const StatementCard = ({ statement, selectedStatement, onClick, elementRef }) => {
 
 	let cardStatusColor = "";
 	switch (statement?.verification_result) {
@@ -53,9 +94,15 @@ const StatementCard = ({ statement }) => {
 			break;
 	}
 
+  let isSelected = selectedStatement != null && statement?.sentence?.id === selectedStatement?.sentence?.id;
+
 
 	return (
-		<article className="w-full rounded-lg border border-text_shade_1 p-3 flex flex-col gap-1">
+		<article
+			ref={elementRef}
+			className={`w-full rounded-lg border ${isSelected ?  "border-blue-500/50 border-2" : "border-text_shade_1" } p-3 flex flex-col gap-1 ${onClick ? 'cursor-pointer' : ''}`}
+			onClick={onClick}
+		>
 			<p className="font-semibold flex items-center gap-2">
 
 				{/* Circle with statement verification status: green for supported, red for contradicted, yellow for unverified. */}
