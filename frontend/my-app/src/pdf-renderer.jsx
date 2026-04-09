@@ -9,7 +9,9 @@ import '@react-pdf-viewer/highlight/lib/styles/index.css';
 
 function PdfRenderer({ pdfFilePath, onStatementClick, statements=[], selectedStatement=null}) {
 
-
+  const rawSelectedPageIndex = selectedStatement?.sentence?.tokens?.at?.(0)?.pageIndex;
+  const selectedPageIndex = Number.isFinite(Number(rawSelectedPageIndex)) ? Number(rawSelectedPageIndex) : null;
+  const viewerKey = `${pdfFilePath}-${typeof selectedPageIndex === 'number' && selectedPageIndex >= 0 ? selectedPageIndex : 'default'}`;
 
   // Color the sentences that belong to statements based on their verification result
   const getStatementColor = (verificationResult) => {
@@ -50,7 +52,7 @@ function PdfRenderer({ pdfFilePath, onStatementClick, statements=[], selectedSta
                     pointerEvents: 'auto',
                     cursor: onStatementClick ? 'pointer' : 'default',
                     zIndex: 2,
-                    backgroundColor: `rgba(${getStatementColor(statement?.verification_result)}, ${selectedStatement != null && statement?.sentence?.id === selectedStatement?.sentence?.id ? 0.5 : 0.25})`,
+                    backgroundColor: `rgba(${getStatementColor(statement?.verification_result)}, ${selectedStatement != null && statement?.sentence?.id === selectedStatement?.sentence?.id ? 0.6 : 0.2})`,
                   }}
                 />
               ));
@@ -62,7 +64,12 @@ function PdfRenderer({ pdfFilePath, onStatementClick, statements=[], selectedSta
   return (
     <div className="h-full w-full overflow-hidden rounded-lg bg-bg_shade_1">
       <Worker workerUrl={workerUrl}>
-        <Viewer fileUrl={pdfFilePath} plugins={[highlightPluginInstance]} />
+        <Viewer
+          key={viewerKey}
+          fileUrl={pdfFilePath}
+          initialPage={typeof selectedPageIndex === 'number' && selectedPageIndex >= 0 ? selectedPageIndex : 0}
+          plugins={[highlightPluginInstance]}
+        />
       </Worker>
     </div>
   );
