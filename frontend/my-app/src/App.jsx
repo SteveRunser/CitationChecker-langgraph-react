@@ -6,6 +6,7 @@ import ReferenceSection from './reference-section'
 import StatementSection from './statement-section'
 import { runReferenceExtractionGraph } from './graphs/reference-extraction-graph'
 import { runStatementExtractionGraph } from './graphs/statement-extraction-graph'
+import { runStatementVerificationGraph } from './graphs/statement-verification-graph'
 import './App.css'
 
 import {
@@ -128,12 +129,15 @@ function App() {
   const [isSegmenting, setIsSegmenting] = useState(false)
   const [isExtractingStatements, setIsExtractingStatements] = useState(false)
   const [isExtractingReferences, setIsExtractingReferences] = useState(false)
+  const [isVerifyingStatements, setIsVerifyingStatements] = useState(false)
+  const [hasVerifiedStatements, setHasVerifiedStatements] = useState(false)
 
   // These states are used to display loading indicators and error messages in the UI, 
   // and to prevent certain actions from being triggered while a step is in progress.
   const [segmentationError, setSegmentationError] = useState('')
   const [statementError, setStatementError] = useState('')
   const [referenceError, setReferenceError] = useState('')
+  const [verificationError, setVerificationError] = useState('')
   //---------------------------------------------------------------------------------------------
 
 
@@ -155,6 +159,7 @@ function App() {
     setSelectedStatement(null)
     setReferences([])
     setSentences(segmentedSentences ?? [])
+    setHasVerifiedStatements(false)
     setIsSegmenting(false)
   }, [])
 
@@ -316,6 +321,70 @@ function App() {
 
 
   //---------------------------------------------------------------------------------------------
+  // This useEffect hook is responsible for running the statement verification once
+  // both statements and references extractions are complete.
+  useEffect(() => {
+    if (isSegmenting || isExtractingStatements || isExtractingReferences) {
+      return
+    }
+
+    if (hasVerifiedStatements || statements.length === 0 || references.length === 0) {
+      return
+    }
+
+    let isCancelled = false
+
+    const getStatementId = (statement) => statement?.sentence?.id ?? statement?.sentence_id ?? statement?.id ?? null
+
+    const runStatementVerification = async () => {
+      try {
+        setVerificationError('')
+        setIsVerifyingStatements(true)
+
+        const verifiedStatements = await runStatementVerificationGraph(statements, references, {
+          onVerification: (payload) => {
+            if (isCancelled) {
+              return
+            }
+
+            const updatedStatement = payload?.statement
+            const updatedId = getStatementId(updatedStatement)
+            if (!updatedStatement || !updatedId) {
+              return
+            }
+
+            setStatements((current) =>
+              current.map((item) => (getStatementId(item) === updatedId ? updatedStatement : item))
+            )
+          },
+        })
+
+        if (!isCancelled) {
+          setStatements(verifiedStatements)
+          setHasVerifiedStatements(true)
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setVerificationError(error?.message ?? 'Statement verification failed')
+          console.error('[statements] Verification failed', error)
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsVerifyingStatements(false)
+        }
+      }
+    }
+
+    runStatementVerification()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [statements, references, isSegmenting, isExtractingStatements, isExtractingReferences, hasVerifiedStatements])
+  //---------------------------------------------------------------------------------------------
+
+
+  //---------------------------------------------------------------------------------------------
   return (
     <>
       <div className="w-screen h-screen flex flex-col items-center justify-center bg-bg_shade_3">
@@ -370,8 +439,8 @@ function App() {
                     statements={statements}
                     handleStatementClick={handleStatementClick}
                     selectedStatement={selectedStatement}
-                    isExtracting={isExtractingStatements}
-                    error={statementError || segmentationError}
+                    isExtracting={isExtractingStatements || isVerifyingStatements}
+                    error={statementError || segmentationError || verificationError}
                   />
 
                 </Panel>
