@@ -334,30 +334,22 @@ function App() {
 
     let isCancelled = false
 
-    const getStatementId = (statement) => statement?.sentence?.id ?? statement?.sentence_id ?? statement?.id ?? null
+    const onVerification =  (statement) => {
+      console.log(`[verification] Statement ${statement.sentence.id} verified with status: ${statement.verification_result} | explanation: ${statement.verification_explanation}`)
+    }
 
     const runStatementVerification = async () => {
       try {
         setVerificationError('')
         setIsVerifyingStatements(true)
 
-        const verifiedStatements = await runStatementVerificationGraph(statements, references, {
-          onVerification: (payload) => {
-            if (isCancelled) {
-              return
-            }
+        
 
-            const updatedStatement = payload?.statement
-            const updatedId = getStatementId(updatedStatement)
-            if (!updatedStatement || !updatedId) {
-              return
-            }
-
-            setStatements((current) =>
-              current.map((item) => (getStatementId(item) === updatedId ? updatedStatement : item))
-            )
-          },
-        })
+        const verifiedStatements = await runStatementVerificationGraph(
+          statements, 
+          references, 
+          onVerification
+        )
 
         if (!isCancelled) {
           setStatements(verifiedStatements)

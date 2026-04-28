@@ -10,9 +10,9 @@ const model = new ChatOpenAI({
         baseURL: openAIProxyBaseUrl,
     },
     dangerouslyAllowBrowser: true,
-    temperature: 0.2,
 });
 
+// Limit the number of concurrent calls to the openAI api
 const MAX_CONCURRENCY = 3;
 
 const modelOutputSchema = {
@@ -39,6 +39,8 @@ const structuredModel = model.withStructuredOutput(modelOutputSchema, {
 
 const StatementVerificationState = Annotation.Root({
     unverifiedStatements: Annotation(),
+
+    // Reducer to accumulate verified statements as they are emitted from parallel nodes.
     verifiedStatements: Annotation({
         reducer: (left, right) => {
             const leftList = Array.isArray(left) ? left : [];
@@ -127,29 +129,30 @@ const statementVerificationNode = async (state) => {
         return { verifiedStatements: [] };
     }
 
+    // Collect the cited references in the statement
     const citationIds = Array.isArray(statement?.citations) ? statement.citations : [];
     const referenceList = citationIds
         .map((refId) => references?.[refId] ?? references?.[String(refId)])
         .filter(Boolean);
     const openAccessReferences = referenceList.filter((ref) => Boolean(ref?.is_open_access));
 
+    // If no citation is open access, we cannot verify the claim, so we mark it as Unverified with an explanation.
     if (openAccessReferences.length === 0) {
         statement.verification_result = 'Unverified';
         statement.verification_explanation =
             'None of the cited references are open access, so we cannot verify this statement.';
 
         onVerification?.({
-            event: 'statement_verified',
-            sentence_id: statement?.sentence?.id ?? statement?.sentence_id ?? null,
-            verification_status: 'Unverified',
+            ...statement,
             verification_result: statement.verification_result,
             verification_explanation: statement.verification_explanation,
-            statement,
         });
 
         return { verifiedStatements: [statement] };
     }
 
+    // If the claim can be verified, construct a prompt where the cited papers are in 
+    // the context.
     const prompt = `
 You are an expert at verifying scientific claims by analyzing the cited references.
 Here is the scientific claim you need to verify:
@@ -169,6 +172,7 @@ Rules:
 - Provide a brief explanation of the reasoning behind the verification status, based on the content of the cited references.
 `;
 
+    // Use a smart retry and backoff logic to handle API rate limits
     let result;
     try {
         result = await structuredModel.invoke(prompt);
@@ -192,16 +196,13 @@ Rules:
         : 'Verification not yet performed.';
     const verificationResult = mapStatusToResult(verificationStatus);
 
+    // Stream the verification result back to the UI via the onVerification callback, and also return it in the node output for accumulation in the graph state.
     statement.verification_result = verificationResult;
     statement.verification_explanation = verificationExplanation;
-
     onVerification?.({
-        event: 'statement_verified',
-        sentence_id: statement?.sentence?.id ?? statement?.sentence_id ?? null,
-        verification_status: verificationStatus,
-        verification_result: verificationResult,
-        verification_explanation: verificationExplanation,
-        statement,
+        ...statement,
+        verification_result: statement.verification_result,
+        verification_explanation: statement.verification_explanation,
     });
 
     return { verifiedStatements: [statement] };
@@ -252,35 +253,22 @@ const buildReferenceMap = (references) => {
 // Input: statements array, references (array/Map/object), and options.
 // Output: array of verified statements from the final graph state.
 // Purpose: orchestrate the graph run with concurrency limits and streaming hooks.
-export async function runStatementVerificationGraph(statements, references, options = {}) {
+export async function runStatementVerificationGraph(statements, references, onVerification) {
     const unverifiedStatements = Array.isArray(statements) ? statements : [];
     if (unverifiedStatements.length === 0) {
         console.warn('[statements] No statements available for verification.');
         return [];
     }
 
-    const onVerification = typeof options?.onVerification === 'function' ? options.onVerification : null;
-    const maxConcurrency = Number.isInteger(options?.maxConcurrency)
-        ? options.maxConcurrency
-        : MAX_CONCURRENCY;
-
     const finalState = await statementVerificationGraph.invoke(
         {
             unverifiedStatements,
             verifiedStatements: [],
             references: buildReferenceMap(references),
-            onVerification: (payload) => {
-                if (payload?.event === 'statement_verified') {
-                    console.log(
-                        `[sentence ${payload?.sentence_id ?? 'unknown'}] verification status: ${payload?.verification_status ?? 'Unverified'} | explanation: ${payload?.verification_explanation ?? ''}`
-                    );
-                }
-
-                onVerification?.(payload);
-            },
+            onVerification: onVerification,
         },
         {
-            maxConcurrency,
+            MAX_CONCURRENCY,
         }
     );
 
