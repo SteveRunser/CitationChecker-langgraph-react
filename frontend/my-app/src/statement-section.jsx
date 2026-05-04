@@ -130,8 +130,13 @@ const StatementCard = ({ statement, selectedStatement, onClick, elementRef }) =>
 			</p>
 
 			<p>
-				<span className="font-semibold">Verification: </span>
+				<span className="font-semibold">Verification status: </span>
 				{statement?.verification_result || 'Unverified'}
+			</p>
+
+			<p>
+				<span className="font-semibold">Verification Explanation: </span>
+				{statement?.verification_explanation || 'Verification not yet started.'}
 			</p>
 		</article>
 	)
