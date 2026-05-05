@@ -12,8 +12,6 @@ const model = new ChatOpenAI({
     dangerouslyAllowBrowser: true,
 });
 
-const MAX_CONCURRENCY = 20;
-
 const modelOutputSchema = {
     type: 'object',
     properties: {
@@ -139,26 +137,24 @@ Rules:
     return { statements: [statement] };
 };
 
-const statementExtractionGraph = new StateGraph(StatementExtractionState)
-    .addNode('statement_extraction_node', statementExtractionNode)
-    .addConditionalEdges(START, fanOutStatementExtractionNode)
-    .addEdge('statement_extraction_node', END)
-    .compile();
 
 
-export async function runStatementExtractionGraph(sentences, options = {}) {
+
+
+async function extractStatements({sentences, onStatement}) {
     const sentenceCount = Object.keys(sentences).length;
 
     if (sentenceCount === 0) {
-        console.warn('[statements] No sentence data available for extraction.');
-        return [];
+        throw new Error('No sentences provided for statement extraction.');
     }
 
-    const onStatement = typeof options?.onStatement === 'function' ? options.onStatement : null;
-    const maxConcurrency = Number.isInteger(options?.maxConcurrency)
-        ? options.maxConcurrency
-        : MAX_CONCURRENCY;
+    const statementExtractionGraph = new StateGraph(StatementExtractionState)
+        .addNode('statement_extraction_node', statementExtractionNode)
+        .addConditionalEdges(START, fanOutStatementExtractionNode)
+        .addEdge('statement_extraction_node', END)
+        .compile();
 
+    const maxConcurrency = 5;
     const finalState = await statementExtractionGraph.invoke(
         {
             sentences,
@@ -168,12 +164,9 @@ export async function runStatementExtractionGraph(sentences, options = {}) {
                 onStatement?.(statement);
             },
         },
-        {
-            maxConcurrency,
-        }
+        {maxConcurrency,}
     );
-
-    const statements = Array.isArray(finalState?.statements) ? finalState.statements : [];
-    console.log(`[statements] Total extracted: ${statements.length}`);
-    return statements;
+    return finalState?.statements ?? [];
 }
+
+export default extractStatements;

@@ -2,6 +2,7 @@ import { Annotation, END, START, StateGraph } from '@langchain/langgraph/web';
 import { ChatOpenAI } from '@langchain/openai';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import TurndownService from 'turndown';
+import { raise } from 'xstate';
 
 const openAIProxyBaseUrl = new URL('/openai/v1', window.location.origin).toString();
 
@@ -235,7 +236,7 @@ Each JSON object must follow:
             seen.add(key);
             const enrichedReference = normalizeReference(await fetchReferenceMetadataOnline(reference));
             references.push(enrichedReference);
-            onReference?.(enrichedReference, references.length);
+            onReference?.(enrichedReference);
         } catch {
             // Ignore non-JSON lines while streaming.
         }
@@ -258,51 +259,32 @@ Each JSON object must follow:
     return { references };
 };
 
-const builder = new StateGraph(ReferenceExtractionState)
-    .addNode('reference_extraction_node', referenceExtractionNode)
-    .addEdge(START, 'reference_extraction_node')
-    .addEdge('reference_extraction_node', END);
 
-const graph = builder.compile();
 
-const sentenceAreasToFullText = (sentenceAreas) => {
-    const sentenceMap = new Map();
-    for (const token of sentenceAreas ?? []) {
-        const sentenceId = token?.sentenceId ?? token?.id;
-        const sentenceText = typeof token?.sentence === 'string'
-            ? token.sentence
-            : (typeof token?.text === 'string' ? token.text : '');
+async function extractReferences({sentences, onReference}) {
 
-        if (sentenceId === undefined || !sentenceText) {
-            continue;
-        }
+    // Convert the sentences into a single document string for the model to process
+    const fullText = sentences.reduce((acc, sentence) => acc + " " + sentence.text.trim(), "");
 
-        if (!sentenceMap.has(sentenceId)) {
-            sentenceMap.set(sentenceId, sentenceText.replace(/\n/g, ' '));
-        }
-    }
-
-    return [...sentenceMap.entries()]
-        .sort((a, b) => Number(a[0]) - Number(b[0]))
-        .map(([, sentence]) => sentence)
-        .join('\n');
-};
-
-export async function runReferenceExtractionGraph(sentenceAreas, options = {}) {
-    const fullText = sentenceAreasToFullText(sentenceAreas);
+    // If the full text is empty after trimming, throw an error to avoid unnecessary model invocation
     if (!fullText.trim()) {
-        console.warn('[references] No sentence data available for extraction.');
-        return [];
+        throw new Error('No valid sentences provided for reference extraction.');
     }
 
-    const onReference = typeof options?.onReference === 'function' ? options.onReference : null;
-
+    const graph = new StateGraph(ReferenceExtractionState)
+        .addNode('reference_extraction_node', referenceExtractionNode)
+        .addEdge(START, 'reference_extraction_node')
+        .addEdge('reference_extraction_node', END).compile();
+    
+    // Run the reference extraction graph with the full text document and 
+    // a callback to handle new references as they are extracted. 
+    // The graph will return the final list of references once the extraction is complete.
     const initialState = {
         document: fullText,
         references: [],
-        onReference: (reference, count) => {
-            console.log(`[reference ${count}] id=${reference.ref_id} | ${reference.title}`);
-            onReference?.(reference, count);
+        onReference: (reference) => {
+            console.log(`[reference id=${reference.ref_id}] | ${reference.title}`);
+            onReference?.(reference);
         },
     };
 
@@ -311,3 +293,5 @@ export async function runReferenceExtractionGraph(sentenceAreas, options = {}) {
     console.log(`[references] Total extracted: ${references.length}`);
     return references;
 }
+
+export default extractReferences;

@@ -1,13 +1,10 @@
-import { useEffect } from 'react';
 import { getDocument } from 'pdfjs-dist';
 import sbd from 'sbd';
 
 
-
-const extractPdfTextTokens = async (pdfFilePath) => {
+//Extract all the text tokens from the PDF, along with their position in space and page information. 
+const extractPdfTextTokens =  async (pdf) => {
   try {
-    const loadingTask = getDocument(pdfFilePath);
-    const pdf = await loadingTask.promise;
     const textTokens = [];
 
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
@@ -63,7 +60,7 @@ const extractPdfTextTokens = async (pdfFilePath) => {
 
 // This function takes the raw text tokens and group them into sentences.
 // It uses the `sbd` library to perform sentence boundary detection on the text of each page.
-const rulebasedSentenceSegmentation = async (rawTextTokens) => {
+const rulebasedSentenceSegmentation =  (rawTextTokens) => {
   
   // Store the segmented sentences in this array.
   const sentences = [];
@@ -189,54 +186,17 @@ const rulebasedSentenceSegmentation = async (rawTextTokens) => {
 };
 
 
-function SentenceSegmenter({ pdfFilePath, onStart, onComplete, onError }) {
-  useEffect(() => {
-    if (!pdfFilePath) {
-      onComplete?.([]);
-      return;
-    }
 
-    let isMounted = true;
-    const processPdf = async () => {
-      try {
-        onStart?.();
 
-        // The text tokens are the raw bits of text that have been extracted from the PDF. 
-        // Here are the following properties of the text tokens:
-        // - start: the index of the first character of the token in the page text
-        // - end: the index of the last character of the token in the page text
-        // - left: the left position of the token in percentage of the page width
-        // - top: the top position of the token in percentage of the page height
-        // - width: the width of the token in percentage of the page width
-        // - height: the height of the token in percentage of the page height
-        // - text: the actual text content of the token
-        // - separator: the separator that follows the token (e.g., space, newline)
-        // - pageIndex: the index of the page where the token is located (starting from 0)
-        const rawTextTokens = await extractPdfTextTokens(pdfFilePath);
+// Extract all the sentences from the PDF by first extracting the text tokens and then grouping them into sentences. The output is a list of sentence objects, where each sentence object has an id, the text of the sentence and the list of text tokens that belong to the sentence.
+async function extractSentences({ pdf }) {
 
-        // Extract sentences from the raw text tokens. 
-        const sentences = await rulebasedSentenceSegmentation(rawTextTokens ?? []);
+  // Extract all the raw text tokens from the pdf along with their position in space
+  const rawTextTokens =  await extractPdfTextTokens(pdf);
 
-        if (isMounted) {
-          onComplete?.(sentences ?? []);
-        }
-      } catch (error) {
-        console.error('Sentence segmentation pipeline failed:', error);
-        if (isMounted) {
-          onError?.(error);
-          onComplete?.([]);
-        }
-      }
-    };
-
-    processPdf();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [pdfFilePath, onStart, onComplete, onError]);
-
-  return null;
+  // Group the text tokens into sentences. Each sentence object has an id, the text of the sentence and the list of text tokens that belong to the sentence.      
+  const sentences = rulebasedSentenceSegmentation(rawTextTokens ?? []);
+  return sentences;
 }
 
-export default SentenceSegmenter;
+export default extractSentences;

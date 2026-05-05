@@ -253,7 +253,7 @@ const buildReferenceMap = (references) => {
 // Input: statements array, references (array/Map/object), and options.
 // Output: array of verified statements from the final graph state.
 // Purpose: orchestrate the graph run with concurrency limits and streaming hooks.
-export async function runStatementVerificationGraph(statements, references, onVerification) {
+async function verifyStatements(statements, references, onVerification) {
     const unverifiedStatements = Array.isArray(statements) ? statements : [];
     if (unverifiedStatements.length === 0) {
         console.warn('[statements] No statements available for verification.');
@@ -278,3 +278,5 @@ export async function runStatementVerificationGraph(statements, references, onVe
     console.log(`[statements] Total verified: ${verifiedStatements.length}`);
     return verifiedStatements;
 }
+
+export default verifyStatements;

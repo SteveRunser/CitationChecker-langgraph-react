@@ -1,24 +1,28 @@
 import { useEffect, useRef } from 'react'
 import { FileText, LoaderCircle } from 'lucide-react'
 
-function StatementSection({ statements = [], handleStatementClick=null, selectedStatement=null, isExtracting = false, error = '' }) {
-	const statementElementRefs = useRef({})
+function StatementSection({ state, onStatementClick, selectedStatement }) {
+	
 
-	const getStatementId = (statement) => statement?.id ?? statement?.sentence?.id ?? statement?.sentence_id ?? null
-
+  const statements = state?.context?.statements ?? [];
+  const isStatementExtractionRunning = state.matches("statementReferenceExtraction.statementExtraction.running");
+  const isStatementVerificationRunning = state.matches("verification.running");
+  
+  //---------------------------------------------------------------------------------------------
+  // Scrolling effect to scroll to the statement card that corresponds to the currently selected statement. This effect runs when the user clicks on a statement in the PDF renderer.
+  const statementElementRefs = useRef({})
 	useEffect(() => {
-		const selectedId = getStatementId(selectedStatement)
-
-		if (!selectedId) {
+		if (!selectedStatement?.sentence?.id) {
 			return
 		}
-
-		const selectedElement = statementElementRefs.current[selectedId]
-
+		const selectedElement = statementElementRefs.current[selectedStatement.sentence.id]
 		if (selectedElement) {
 			selectedElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 		}
 	}, [selectedStatement, statements])
+  //---------------------------------------------------------------------------------------------
+
+
 
 	return (
 		<div className="w-full h-full flex flex-col bg-bg_shade_1 rounded-xl overflow-auto gap-2">
@@ -31,7 +35,7 @@ function StatementSection({ statements = [], handleStatementClick=null, selected
 				</div>
 
 				<div className="flex flex-row items-center gap-2">
-					{isExtracting ? (
+					{(isStatementExtractionRunning || isStatementVerificationRunning) ? (
 						<div className="flex h-8 w-8 items-center justify-center rounded-full">
 							<LoaderCircle size={24} className="text-blue-600 animate-spin [animation-duration:650ms]" />
 						</div>
@@ -42,15 +46,14 @@ function StatementSection({ statements = [], handleStatementClick=null, selected
 			</div>
 
 			<div id="statement-content" className="flex-1 p-4 overflow-auto flex flex-col gap-4">
-				{error ? <p>{error}</p> : null}
-
+				
 				{statements.length === 0 ? (
 					<p className="text-center text-lg">
-						{isExtracting ? 'Extracting statements. This may take a few minutes.' : 'No statements yet.'}
+						{isStatementExtractionRunning ? 'Extracting statements. This may take a few minutes.' : 'No statements yet.'}
 					</p>
 				) : (
 					statements.map((statement, index) => {
-						const statementId = getStatementId(statement)
+						const statementId = statement?.sentence?.id
 
 						return (
 						<StatementCard
@@ -68,7 +71,7 @@ function StatementSection({ statements = [], handleStatementClick=null, selected
 									delete statementElementRefs.current[statementId]
 								}
 							}}
-							onClick={handleStatementClick ? () => handleStatementClick(statement) : undefined}
+							onClick={onStatementClick ? () => onStatementClick(statement) : undefined}
 						/>
 						)
 					})

@@ -1,47 +1,49 @@
 import { BookOpenText, LoaderCircle } from "lucide-react";
 
 
-function ReferenceSection({ references = [], isExtracting = false, error = '' }) {
+function ReferenceSection({ state }) {
 
-    return (
-      <div className="w-full h-full flex flex-col bg-bg_shade_1 rounded-xl overflow-auto gap-2">
+  const references = state?.context?.references ?? [];
+  const isReferenceExtractionRunning = state.matches("statementReferenceExtraction.referenceExtraction.running");
+
+  return (
+    <div className="w-full h-full flex flex-col bg-bg_shade_1 rounded-xl overflow-auto gap-2">
+      
+      <div id="reference-header" className="flex flex-row w-full items-center justify-between  px-4 py-2 border-b border-text_shade_1 border-05">
+
+        <div className="flex flex-row items-center gap-2 mx-2 my-1">
+          <BookOpenText size={24} className="text-text_shade_3" />
+          <h1 className="text-2xl font-semibold">References</h1>
+        </div>
+
+        <div className="flex flex-row items-center gap-2">
+
+          {/* Show a small loading spinner if we're waiting for streamed references */}
+          {isReferenceExtractionRunning ? (
+            <div className="flex h-8 w-8 items-center justify-center rounded-full">
+              <LoaderCircle size={24} className="text-blue-600 animate-spin [animation-duration:650ms]" />
+            </div>
+          ) : null}
+
+          <p className="text-lg text-text_shade_3 font-bold ">
+            {`[${references.length}]`}
+          </p>
+        </div>
+      </div>
+
+      <div id="reference-content" className="flex-1 p-4 overflow-auto flex flex-col gap-4">
+
         
-        <div id="reference-header" className="flex flex-row w-full items-center justify-between  px-4 py-2 border-b border-text_shade_1 border-05">
-
-          <div className="flex flex-row items-center gap-2 mx-2 my-1">
-            <BookOpenText size={24} className="text-text_shade_3" />
-            <h1 className="text-2xl font-semibold">References</h1>
-          </div>
-
-          <div className="flex flex-row items-center gap-2">
-
-            {/* Show a small loading spinner if we're waiting for streamed references */}
-            {isExtracting ? (
-              <div className="flex h-8 w-8 items-center justify-center rounded-full">
-                <LoaderCircle size={24} className="text-blue-600 animate-spin [animation-duration:650ms]" />
-              </div>
-            ) : null}
-
-            <p className="text-lg text-text_shade_3 font-bold ">
-              {`[${references.length}]`}
+        {references.length === 0 ? (
+            <p className="text-center text-lg">
+              {isReferenceExtractionRunning ? 'Extracting references. This may take a few minutes.' : 'No references yet.'}
             </p>
-          </div>
-        </div>
-
-        <div id="reference-content" className="flex-1 p-4 overflow-auto flex flex-col gap-4">
-
-          {error ? <p>{error}</p> : null}
-
-          {references.length === 0 ? (
-              <p className="text-center text-lg">
-                {isExtracting ? 'Extracting references. This may take a few minutes.' : 'No references yet.'}
-              </p>
-          ) : (
-            references.map((reference, index) => (
-              <ReferenceCard key={index} reference={reference} />
-            ))
-          )}
-        </div>
+        ) : (
+          references.map((reference, index) => (
+            <ReferenceCard key={index} reference={reference} />
+          ))
+        )}
+      </div>
     </div>
   );
 }
