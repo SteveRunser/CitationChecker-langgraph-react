@@ -3,12 +3,11 @@ import { BookOpenText, LoaderCircle } from "lucide-react";
 
 function ReferenceSection({ state }) {
 
-  const references = state?.context?.references ?? [];
+  const references = state?.context?.references ?? new Map();
   const isReferenceExtractionRunning = state.matches("statementReferenceExtraction.referenceExtraction.running");
 
   return (
     <div className="w-full h-full flex flex-col bg-bg_shade_1 rounded-xl overflow-auto gap-2">
-      
       <div id="reference-header" className="flex flex-row w-full items-center justify-between  px-4 py-2 border-b border-text_shade_1 border-05">
 
         <div className="flex flex-row items-center gap-2 mx-2 my-1">
@@ -26,7 +25,7 @@ function ReferenceSection({ state }) {
           ) : null}
 
           <p className="text-lg text-text_shade_3 font-bold ">
-            {`[${references.length}]`}
+            {`[${references.size}]`}
           </p>
         </div>
       </div>
@@ -34,13 +33,13 @@ function ReferenceSection({ state }) {
       <div id="reference-content" className="flex-1 p-4 overflow-auto flex flex-col gap-4">
 
         
-        {references.length === 0 ? (
+        {references.size === 0 ? (
             <p className="text-center text-lg">
               {isReferenceExtractionRunning ? 'Extracting references. This may take a few minutes.' : 'No references yet.'}
             </p>
         ) : (
-          references.map((reference, index) => (
-            <ReferenceCard key={index} reference={reference} />
+          Array.from(references.entries()).map(([referenceId, reference]) => (
+            <ReferenceCard key={referenceId} reference={reference} />
           ))
         )}
       </div>

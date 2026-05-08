@@ -43,11 +43,11 @@ const StatementExtractionState = Annotation.Root({
     sentences: Annotation(),
     statements: Annotation({
         reducer: (left, right) => {
-            const leftList = Array.isArray(left) ? left : [];
-            const rightList = Array.isArray(right) ? right : [];
-            return [...leftList, ...rightList];
+            const leftMap = left instanceof Map ? left : new Map();
+            const rightMap = right instanceof Map ? right : new Map();
+            return new Map([...leftMap, ...rightMap]);
         },
-        default: () => [],
+        default: () => new Map(),
     }),
     onStatement: Annotation(),
 });
@@ -78,9 +78,7 @@ const statementExtractionNode = async (state) => {
     const nextSentenceText = typeof sentences[sentenceId + 1]?.text === 'string' ? sentences[sentenceId + 1].text : '';
     const surroundingText = `${previousSentenceText} ${currentSentenceText} ${nextSentenceText}`.trim();
 
-    if (!currentSentenceText) {
-        return { statements: [] };
-    }
+    if (!currentSentenceText) {return null;}
 
     const prompt = `
 Given the following sentence:
@@ -121,7 +119,7 @@ Rules:
 
     // If there is no claim or no citations, return nothing for this sentence
     if (!claim || citations.length === 0) {
-        return { statements: [] };
+        return { statements: new Map() };
     }
 
     // Construct the statement object
@@ -134,7 +132,7 @@ Rules:
     };
 
     onStatement?.(statement);
-    return { statements: [statement] };
+    return null;
 };
 
 
@@ -155,10 +153,10 @@ async function extractStatements({sentences, onStatement}) {
         .compile();
 
     const maxConcurrency = 5;
-    const finalState = await statementExtractionGraph.invoke(
+    await statementExtractionGraph.invoke(
         {
             sentences,
-            statements: [],
+            statements: new Map(),
             onStatement: (statement) => {
                 console.log(`[statement] sentence=${statement?.sentence?.id ?? 'unknown'} | ${statement.claim}`);
                 onStatement?.(statement);
@@ -166,7 +164,10 @@ async function extractStatements({sentences, onStatement}) {
         },
         {maxConcurrency,}
     );
-    return finalState?.statements ?? [];
+
+    // The statements are emitted through the onStatement callback as they are extracted, 
+    // so we don't need to return them here. 
+    return null;
 }
 
 export default extractStatements;

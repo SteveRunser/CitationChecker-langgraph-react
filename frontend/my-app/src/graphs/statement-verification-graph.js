@@ -38,17 +38,7 @@ const structuredModel = model.withStructuredOutput(modelOutputSchema, {
 });
 
 const StatementVerificationState = Annotation.Root({
-    unverifiedStatements: Annotation(),
-
-    // Reducer to accumulate verified statements as they are emitted from parallel nodes.
-    verifiedStatements: Annotation({
-        reducer: (left, right) => {
-            const leftList = Array.isArray(left) ? left : [];
-            const rightList = Array.isArray(right) ? right : [];
-            return [...leftList, ...rightList];
-        },
-        default: () => [],
-    }),
+    statements: Annotation(),
     references: Annotation(),
     onVerification: Annotation(),
 });
@@ -57,12 +47,11 @@ const StatementVerificationState = Annotation.Root({
 // Output: list of Send instructions, one per statement.
 // Purpose: fan-out work so each statement is verified independently and in parallel.
 const fanOutStatementVerificationNode = (state) => {
-    const statements = Array.isArray(state?.unverifiedStatements) ? state.unverifiedStatements : [];
-
-    return statements.map((statement) =>
+ 
+    return  Array.from(state.statements.entries()).map(([statementId, statement]) =>
         new Send('statement_verification_node', {
             statement,
-            references: state?.references ?? {},
+            references: state.references,
             onVerification: state?.onVerification,
         })
     );
@@ -124,10 +113,7 @@ const statementVerificationNode = async (state) => {
     const onVerification = typeof state?.onVerification === 'function' ? state.onVerification : null;
     const statement = state?.statement ?? null;
     const references = state?.references ?? {};
-
-    if (!statement) {
-        return { verifiedStatements: [] };
-    }
+    if (!statement || !references) {return null;}
 
     // Collect the cited references in the statement
     const citationIds = Array.isArray(statement?.citations) ? statement.citations : [];
@@ -147,8 +133,6 @@ const statementVerificationNode = async (state) => {
             verification_result: statement.verification_result,
             verification_explanation: statement.verification_explanation,
         });
-
-        return { verifiedStatements: [statement] };
     }
 
     // If the claim can be verified, construct a prompt where the cited papers are in 
@@ -205,78 +189,48 @@ Rules:
         verification_explanation: statement.verification_explanation,
     });
 
-    return { verifiedStatements: [statement] };
+    
 };
 
-const statementVerificationGraph = new StateGraph(StatementVerificationState)
-    .addNode('statement_verification_node', statementVerificationNode, {
-        retryPolicy: {
-            maxAttempts: 5,
-            retryOn: isRateLimitError,
-        },
-    })
-    .addConditionalEdges(START, fanOutStatementVerificationNode)
-    .addEdge('statement_verification_node', END)
-    .compile();
 
-// Input: references as array, Map, or object keyed by ref_id.
-// Output: plain object map of ref_id -> reference.
-// Purpose: normalize reference lookup for consistent access by citation id.
-const buildReferenceMap = (references) => {
-    if (!references) return {};
 
-    if (Array.isArray(references)) {
-        return references.reduce((acc, ref) => {
-            const refId = Number.isFinite(Number(ref?.ref_id)) ? Number(ref.ref_id) : null;
-            if (refId !== null) {
-                acc[refId] = ref;
-            }
-            return acc;
-        }, {});
-    }
-
-    if (references instanceof Map) {
-        const obj = {};
-        for (const [key, value] of references.entries()) {
-            obj[key] = value;
-        }
-        return obj;
-    }
-
-    if (typeof references === 'object') {
-        return references;
-    }
-
-    return {};
-};
 
 // Input: statements array, references (array/Map/object), and options.
 // Output: array of verified statements from the final graph state.
 // Purpose: orchestrate the graph run with concurrency limits and streaming hooks.
-async function verifyStatements(statements, references, onVerification) {
-    const unverifiedStatements = Array.isArray(statements) ? statements : [];
-    if (unverifiedStatements.length === 0) {
-        console.warn('[statements] No statements available for verification.');
-        return [];
+async function verifyStatements({statements, references, onVerification}) {
+
+    if (statements.length === 0) {
+        throw new Error('No statements to verify');
     }
+    if (references.length === 0) {
+        throw new Error('No references provided for verification');
+    }
+
+    // Create the graph with a retry policy on the statement verification node 
+    // to handle rate limits gracefully.
+    const statementVerificationGraph = new StateGraph(StatementVerificationState)
+        .addNode('statement_verification_node', statementVerificationNode, {
+            retryPolicy: {
+                maxAttempts: 5,
+                retryOn: isRateLimitError,
+            },
+        })
+        .addConditionalEdges(START, fanOutStatementVerificationNode)
+        .addEdge('statement_verification_node', END)
+        .compile();
 
     const finalState = await statementVerificationGraph.invoke(
         {
-            unverifiedStatements,
-            verifiedStatements: [],
-            references: buildReferenceMap(references),
+            statements: statements,
+            references: references,
             onVerification: onVerification,
         },
         {
             MAX_CONCURRENCY,
         }
     );
-
-    const verifiedStatements = Array.isArray(finalState?.verifiedStatements)
-        ? finalState.verifiedStatements
-        : [];
-    console.log(`[statements] Total verified: ${verifiedStatements.length}`);
-    return verifiedStatements;
+    return null;
 }
 
 export default verifyStatements;

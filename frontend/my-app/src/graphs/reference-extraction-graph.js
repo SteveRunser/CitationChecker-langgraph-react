@@ -32,6 +32,7 @@ const htmlToMarkdown = (html) => {
 };
 
 const fetchCrossrefMetadata = async (reference) => {
+
     const title = cleanString(reference?.title);
     if (!title) {
         return reference;
@@ -80,17 +81,36 @@ const fetchCrossrefMetadata = async (reference) => {
 };
 
 const fetchOpenAccessMetadata = async (reference) => {
+
+  
+
     const doi = cleanString(reference?.doi);
     if (!doi || !UNPAYWALL_EMAIL) {
+        console.warn('[unpaywall] skipped before fetch', {
+            hasDoi: Boolean(doi),
+            hasEmail: Boolean(UNPAYWALL_EMAIL),
+        });
         return reference;
     }
 
-    const response = await fetch(`${UNPAYWALL_API_BASE}/${encodeURIComponent(doi)}?email=${encodeURIComponent(UNPAYWALL_EMAIL)}`);
-    if (!response.ok) {
+    let response;
+    try {
+        response = await fetch(`${UNPAYWALL_API_BASE}/${encodeURIComponent(doi)}?email=${encodeURIComponent(UNPAYWALL_EMAIL)}`);
+        console.log(`[unpaywall] ${response.ok} ${response.status}`);
+
+        if (!response.ok) {
+            return reference;
+        }
+    } catch (error) {
+        console.warn('[unpaywall] request failed', { doi, error });
         return reference;
     }
 
     const payload = await response.json();
+
+    
+
+
     const isOpenAccess = Boolean(payload?.is_oa);
     const bestLocation = payload?.best_oa_location ?? {};
 
@@ -103,6 +123,8 @@ const fetchOpenAccessMetadata = async (reference) => {
 };
 
 const fetchPaperContent = async (reference) => {
+
+
     if (!reference?.is_open_access) {
         return reference;
     }
@@ -140,6 +162,8 @@ const fetchPaperContent = async (reference) => {
 };
 
 const fetchReferenceMetadataOnline = async (reference) => {
+
+    
     try {
         let enrichedReference = { ...reference };
         enrichedReference = await fetchCrossrefMetadata(enrichedReference);
@@ -156,22 +180,11 @@ const ReferenceExtractionState = Annotation.Root({
     document: Annotation(),
     references: Annotation({
         reducer: (left, right) => {
-            const leftList = Array.isArray(left) ? left : [];
-            const rightList = Array.isArray(right) ? right : [];
-            const seen = new Set();
-            const merged = [];
-
-            for (const ref of [...leftList, ...rightList]) {
-                const key = `${ref?.ref_id ?? ''}::${(ref?.title ?? '').trim().toLowerCase()}`;
-                if (!seen.has(key)) {
-                    seen.add(key);
-                    merged.push(ref);
-                }
-            }
-
-            return merged;
+            const leftMap = left instanceof Map ? left : new Map();
+            const rightMap = right instanceof Map ? right : new Map();
+            return new Map([...leftMap, ...rightMap]);
         },
-        default: () => [],
+        default: () => new Map(),
     }),
     onReference: Annotation(),
 });
@@ -232,10 +245,11 @@ Each JSON object must follow:
 
             const key = `${reference.ref_id}::${reference.title.trim().toLowerCase()}`;
             if (seen.has(key)) return;
-
             seen.add(key);
+
+
             const enrichedReference = normalizeReference(await fetchReferenceMetadataOnline(reference));
-            references.push(enrichedReference);
+
             onReference?.(enrichedReference);
         } catch {
             // Ignore non-JSON lines while streaming.
@@ -281,17 +295,18 @@ async function extractReferences({sentences, onReference}) {
     // The graph will return the final list of references once the extraction is complete.
     const initialState = {
         document: fullText,
-        references: [],
+        references: new Map(),
         onReference: (reference) => {
             console.log(`[reference id=${reference.ref_id}] | ${reference.title}`);
             onReference?.(reference);
         },
     };
 
-    const finalState = await graph.invoke(initialState);
-    const references = finalState?.references ?? [];
-    console.log(`[references] Total extracted: ${references.length}`);
-    return references;
+    await graph.invoke(initialState);
+    
+    // The references are emitted through the onReference callback as they are extracted, 
+    // so we don't need to return them here.
+    return null; 
 }
 
 export default extractReferences;

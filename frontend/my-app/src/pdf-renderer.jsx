@@ -30,7 +30,7 @@ const getStatementColor = (verificationResult) => {
 function PdfRenderer({ state, pdfFilePath, onStatementClick, selectedStatement}) {
 
   // Extract the statements from the state context
-  const statements = state?.context?.statements ?? [];
+  const statements = state?.context?.statements ?? new Map();
 
   // Use the default layout plugin to render the PDF and the 
   // highlight plugin to render the statement highlights and handle statement click events.
@@ -49,8 +49,7 @@ function PdfRenderer({ state, pdfFilePath, onStatementClick, selectedStatement})
     trigger: Trigger.None,
     renderHighlights: (props) => (
       <>
-        {(Array.isArray(statements) ? statements : [])
-          .flatMap((statement, statementIndex) => {
+        {Array.from(statements.entries()).map(([statementId, statement]) => {
             const sentence = statement?.sentence;
             const tokens = Array.isArray(sentence?.tokens) ? sentence.tokens : [];
 
@@ -75,11 +74,14 @@ function PdfRenderer({ state, pdfFilePath, onStatementClick, selectedStatement})
     ),
   });
 
-      useEffect(() => {
-        if (typeof selectedPageIndex === 'number' && selectedPageIndex >= 0) {
-          jumpToPage(selectedPageIndex);
-        }
-      }, [jumpToPage, selectedPageIndex]);
+  //-----------------------------------------------------------------------------
+  useEffect(() => {
+    if (typeof selectedPageIndex === 'number' && selectedPageIndex >= 0) {
+      jumpToPage(selectedPageIndex);
+    }
+  }, [jumpToPage, selectedPageIndex]);
+  //-----------------------------------------------------------------------------
+
 
   return (
     <div className="h-full w-full overflow-hidden rounded-lg bg-bg_shade_1">

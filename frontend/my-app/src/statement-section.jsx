@@ -4,7 +4,7 @@ import { FileText, LoaderCircle } from 'lucide-react'
 function StatementSection({ state, onStatementClick, selectedStatement }) {
 	
 
-  const statements = state?.context?.statements ?? [];
+  const statements = state?.context?.statements ?? new Map();
   const isStatementExtractionRunning = state.matches("statementReferenceExtraction.statementExtraction.running");
   const isStatementVerificationRunning = state.matches("verification.running");
   
@@ -19,13 +19,12 @@ function StatementSection({ state, onStatementClick, selectedStatement }) {
 		if (selectedElement) {
 			selectedElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 		}
-	}, [selectedStatement, statements])
+	}, [selectedStatement])
   //---------------------------------------------------------------------------------------------
 
 
-
 	return (
-		<div className="w-full h-full flex flex-col bg-bg_shade_1 rounded-xl overflow-auto gap-2">
+	<div className="w-full h-full flex flex-col bg-bg_shade_1 rounded-xl overflow-auto gap-2">
 			
       <div id="statement-header" className="flex flex-row w-full items-center justify-between px-4 py-2 border-b border-text_shade_1 border-05 ">
         
@@ -41,23 +40,20 @@ function StatementSection({ state, onStatementClick, selectedStatement }) {
 						</div>
 					) : null}
 
-					<p className="text-lg text-text_shade_3 font-bold ">{`[${statements.length}]`}</p>
+					<p className="text-lg text-text_shade_3 font-bold ">{`[${statements.size}]`}</p>
 				</div>
 			</div>
 
 			<div id="statement-content" className="flex-1 p-4 overflow-auto flex flex-col gap-4">
 				
-				{statements.length === 0 ? (
+				{statements.size === 0 ? (
 					<p className="text-center text-lg">
 						{isStatementExtractionRunning ? 'Extracting statements. This may take a few minutes.' : 'No statements yet.'}
 					</p>
 				) : (
-					statements.map((statement, index) => {
-						const statementId = statement?.sentence?.id
-
-						return (
+					Array.from(statements.entries()).map(([statementId, statement]) => (
 						<StatementCard
-							key={index}
+							key={statementId}
 							statement={statement}
 							selectedStatement={selectedStatement}
 							elementRef={(element) => {
@@ -73,8 +69,7 @@ function StatementSection({ state, onStatementClick, selectedStatement }) {
 							}}
 							onClick={onStatementClick ? () => onStatementClick(statement) : undefined}
 						/>
-						)
-					})
+					))
 				)}
 			</div>
 		</div>

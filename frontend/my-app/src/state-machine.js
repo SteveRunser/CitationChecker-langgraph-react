@@ -115,7 +115,7 @@ const statementExtractionStateManagement= {
   on : {
     STATEMENT_EXTRACTION_NEW_DATA: {
       actions: assign({
-        statements: ({ context, event }) => [...context.statements, event.statement]
+        statements: ({ context, event }) => new Map(context.statements).set(event.statement?.sentence?.id, event.statement)
       })
     },
 
@@ -178,7 +178,7 @@ const referenceExtractionStateManagement = {
   on : {
     REFERENCE_EXTRACTION_NEW_DATA: {
       actions: assign({
-        references: ({ context, event }) => [...context.references, event.reference]
+        references: ({ context, event }) => new Map(context.references).set(event.reference.ref_id, event.reference)
       })
     },
 
@@ -197,6 +197,82 @@ const referenceExtractionStateManagement = {
 //---------------------------------------------------------------------------------
 
 
+
+//---------------------------------------------------------------------------------
+// Sub-state machine for the statement verification process
+const statementVerificationStateManagement= {
+  initial: "running",
+  states: {
+    running: {
+      invoke: {
+        src: fromCallback(({ input, sendBack }) => {
+          let isActive = true;
+
+          // We call the extractStatements function and pass a custom callback (onStatement)
+          // that will be called by the graph every time a new statement is extracted. This 
+          // custom callback then sends an event back to the state machine with the new 
+          // statement, which allows us to update the UI in real-time as new 
+          // statements are extracted.
+          verifyStatements({
+            statements: input.statements,
+            references: input.references,
+
+            // Custom callback function
+            onVerification: (statement) => {
+              if (isActive) {
+                sendBack({ type: "STATEMENT_VERIFICATION_NEW_DATA", statement });
+              }
+            },
+          })
+            .then(() => {
+              if (isActive) {
+                sendBack({ type: "STATEMENT_VERIFICATION_COMPLETE" });
+              }
+            })
+            .catch((error) => {
+              if (isActive) {
+                sendBack({ type: "STATEMENT_VERIFICATION_ERROR", error });
+              }
+            });
+
+          return () => {
+            isActive = false;
+          };
+        }),
+        input: ({ context }) => ({ statements: context.statements, references: context.references }),
+      }
+    },
+    done: { type: "final" }
+  },
+
+
+  on : {
+    STATEMENT_VERIFICATION_NEW_DATA: {
+      actions: assign({
+        statements: ({ context, event }) => new Map(context.statements).set(event.statement?.sentence?.id, event.statement)
+      })
+    },
+
+    STATEMENT_VERIFICATION_ERROR: {
+      target: "#extraction-verification-pipeline.error",
+      actions: assign({
+        error: ({ event }) => event?.error ?? event?.data ?? event
+      }),
+    },
+
+    STATEMENT_VERIFICATION_COMPLETE: {
+      target: ".done"
+    },
+  },
+
+  onDone: {
+    target: "#extraction-verification-pipeline.done"
+  },
+}
+//---------------------------------------------------------------------------------
+
+
+
 //---------------------------------------------------------------------------------
 // Factory function to create the main state machine
 const constructStateMachine = ({pdfFilePath}) => {
@@ -212,8 +288,8 @@ const constructStateMachine = ({pdfFilePath}) => {
     context: {
         pdf: null,
         sentences: [],
-        statements: [],
-        references: [],
+        statements: new Map(),
+        references: new Map(),
         error: null
     },
 
@@ -235,7 +311,10 @@ const constructStateMachine = ({pdfFilePath}) => {
       },
 
       // The verifying state runs the statement verification graph
-      verification: {},
+      verification: statementVerificationStateManagement,
+
+      // Stops the execution of the machine when this state is reached.
+      done: { type: "final" },
 
       // If any errors are encountered during extraction or verification, the machine transitions to the error state
       error: {
