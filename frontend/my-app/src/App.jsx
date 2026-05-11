@@ -98,17 +98,7 @@ function App() {
             </Panel>
 
           </Group>
-
-
-
-          
-        </div>
-
-        <div className="h-fit shrink-0 w-full bg-bg_shade_2 p-2 border-t rounded-t-xl border-text_shade_1">
-          <p>FOOTER</p>
-        </div>
-
-        
+        </div>        
       </div>
     </>
   )

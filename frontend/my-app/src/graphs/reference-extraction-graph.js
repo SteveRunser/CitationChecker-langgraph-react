@@ -129,9 +129,9 @@ const fetchPaperContent = async (reference) => {
         return reference;
     }
 
-    if (cleanString(reference?.content).length > 5000) {
-        return reference;
-    }
+    //if (cleanString(reference?.content).length > 5000) {
+    //    return reference;
+    //}
 
     const htmlUrl = cleanString(reference?.html_url);
     if (!htmlUrl) {
@@ -257,6 +257,7 @@ Each JSON object must follow:
     };
 
     for await (const chunk of stream) {
+
         const content = typeof chunk.content === 'string' ? chunk.content : '';
         if (!content) continue;
 
@@ -297,7 +298,7 @@ async function extractReferences({sentences, onReference}) {
         document: fullText,
         references: new Map(),
         onReference: (reference) => {
-            console.log(`[reference id=${reference.ref_id}] | ${reference.title}`);
+            console.log(`[reference id=${reference.ref_id}] | ${reference.title} | content : ${reference.content ?? "NA"}`);
             onReference?.(reference);
         },
     };

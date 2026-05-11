@@ -117,10 +117,11 @@ const statementVerificationNode = async (state) => {
 
     // Collect the cited references in the statement
     const citationIds = Array.isArray(statement?.citations) ? statement.citations : [];
-    const referenceList = citationIds
-        .map((refId) => references?.[refId] ?? references?.[String(refId)])
-        .filter(Boolean);
-    const openAccessReferences = referenceList.filter((ref) => Boolean(ref?.is_open_access));
+
+    // Get the open access references that have content available for verification. 
+    const openAccessReferences = citationIds
+        .map(id => references.get(id) ?? references.get(String(id)))
+        .filter(ref => Boolean(ref?.is_open_access && ref?.content?.trim()));
 
     // If no citation is open access, we cannot verify the claim, so we mark it as Unverified with an explanation.
     if (openAccessReferences.length === 0) {
@@ -133,6 +134,8 @@ const statementVerificationNode = async (state) => {
             verification_result: statement.verification_result,
             verification_explanation: statement.verification_explanation,
         });
+
+        return null;
     }
 
     // If the claim can be verified, construct a prompt where the cited papers are in 
@@ -144,8 +147,7 @@ ${statement?.claim ?? ''}
 
 Here is the content of the cited references: ${openAccessReferences
         .map((ref) => {
-            const content = typeof ref?.content === 'string' && ref.content.trim() ? ref.content : 'Content not available';
-            return `Reference ${ref?.ref_id ?? 'unknown'}:\nTitle: ${ref?.title ?? 'Untitled'}\nContent: ${content}`;
+            return `Reference ${ref?.ref_id ?? 'unknown'}:\nTitle: ${ref?.title ?? 'Untitled'}\nContent: ${ref?.content ?? 'No content available.'}`;
         })
         .join('\n\n')}
 
@@ -189,7 +191,7 @@ Rules:
         verification_explanation: statement.verification_explanation,
     });
 
-    
+    return null;
 };
 
 
@@ -200,10 +202,10 @@ Rules:
 // Purpose: orchestrate the graph run with concurrency limits and streaming hooks.
 async function verifyStatements({statements, references, onVerification}) {
 
-    if (statements.length === 0) {
+    if (statements.size === 0) {
         throw new Error('No statements to verify');
     }
-    if (references.length === 0) {
+    if (references.size === 0) {
         throw new Error('No references provided for verification');
     }
 
