@@ -90,7 +90,7 @@ const StatementCard = ({ statement, selectedStatement, onClick, elementRef }) =>
 			cardStatusColor = 'bg-yellow-500/50';
 			break;
 		default:
-			cardStatusColor = 'bg-yellow-500/50';
+			cardStatusColor = 'bg-gray-500/50';
 			break;
 	}
 

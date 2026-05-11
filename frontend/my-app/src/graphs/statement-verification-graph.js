@@ -47,11 +47,13 @@ const StatementVerificationState = Annotation.Root({
 // Output: list of Send instructions, one per statement.
 // Purpose: fan-out work so each statement is verified independently and in parallel.
 const fanOutStatementVerificationNode = (state) => {
- 
+
+    const referencesPayload = toPlainObject(state.references);
+
     return  Array.from(state.statements.entries()).map(([statementId, statement]) =>
         new Send('statement_verification_node', {
             statement,
-            references: state.references,
+            references: referencesPayload,
             onVerification: state?.onVerification,
         })
     );
@@ -106,22 +108,56 @@ const mapStatusToResult = (status) => {
     return 'Unverified';
 };
 
+const toPlainObject = (value) => {
+    if (value instanceof Map) {
+        return Object.fromEntries(value.entries());
+    }
+    if (Array.isArray(value)) {
+        return Object.fromEntries(value.map((item) => [item?.ref_id, item]));
+    }
+    if (value && typeof value === 'object') {
+        return value;
+    }
+    return {};
+};
+
+const toReferenceMap = (value) => {
+    if (value instanceof Map) {
+        return value;
+    }
+    if (Array.isArray(value)) {
+        return new Map(value.map((item) => [item?.ref_id, item]));
+    }
+    if (value && typeof value === 'object') {
+        return new Map(Object.entries(value));
+    }
+    return new Map();
+};
+
 // Input: substate with a single statement, reference map, and optional callback.
 // Output: partial state with verifiedStatements containing the updated statement.
 // Purpose: verify a claim using open-access references and emit streaming updates.
 const statementVerificationNode = async (state) => {
     const onVerification = typeof state?.onVerification === 'function' ? state.onVerification : null;
     const statement = state?.statement ?? null;
-    const references = state?.references ?? {};
+    const references = state?.references ?? null;
     if (!statement || !references) {return null;}
+
+    const referencesMap = toReferenceMap(references);
+
+    console.log(referencesMap);
+    console.log(statement);    
 
     // Collect the cited references in the statement
     const citationIds = Array.isArray(statement?.citations) ? statement.citations : [];
 
     // Get the open access references that have content available for verification. 
     const openAccessReferences = citationIds
-        .map(id => references.get(id) ?? references.get(String(id)))
-        .filter(ref => Boolean(ref?.is_open_access && ref?.content?.trim()));
+        .map((id) => referencesMap.get(id) ?? referencesMap.get(String(id)))
+        .filter(ref => Boolean(ref?.content?.trim()));
+
+    console.log(`Verifying statement ${statement?.sentence?.id ?? statement?.sentence_id ?? 'unknown'} with citations [${citationIds.join(', ')}] and open access references [${openAccessReferences.map(ref => ref?.ref_id ?? 'unknown').join(', ')}]`);
+
 
     // If no citation is open access, we cannot verify the claim, so we mark it as Unverified with an explanation.
     if (openAccessReferences.length === 0) {
@@ -222,7 +258,7 @@ async function verifyStatements({statements, references, onVerification}) {
         .addEdge('statement_verification_node', END)
         .compile();
 
-    const finalState = await statementVerificationGraph.invoke(
+    await statementVerificationGraph.invoke(
         {
             statements: statements,
             references: references,

@@ -128,7 +128,7 @@ Rules:
         title,
         sentence: sentence,
         citations,
-        verification_result: 'Unverified',
+        verification_result: 'Not started yet',
     };
 
     onStatement?.(statement);
