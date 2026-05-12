@@ -17,11 +17,15 @@ const getStatementColor = (verificationResult) => {
     case 'Supported':
       baseColor = '0, 128, 0'; // Green
       break;
+    case 'Unverified':
+      baseColor = '255, 165, 0'; // Orange
+      break;
     case 'Contradicted':
       baseColor = '255, 0, 0'; // Red
       break;
     default:
-      baseColor = '255, 165, 0'; // Default to orange for all other results, including 'Unverified' and undefined
+      // Default to gray for unknown verification results
+      baseColor =  '88, 88, 88'; // Gray
       break;
   }
   return baseColor;

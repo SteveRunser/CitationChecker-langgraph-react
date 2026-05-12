@@ -1,19 +1,33 @@
 # CitationChecker
 
-CitationChecker is a simple app that checks the veracity of claims in a scientific article against its cited references. It uses a multiagent system orchestrated by Langgraph to extract statements and references, verify each statement against its citations, and display the verification status of each claim in a React UI with explanations.
+**CitationChecker is a simple app that checks the veracity of claims in a scientific article against its cited references. It uses a multiagent system orchestrated by Langgraph to extract statements and references, verify each statement against its citations, and display the verification status of each claim in a React UI with explanations.**
+
+
+
+<img src="doc/image_1.png" alt="image_1" style="background-color: white;" />
+
 
 ⚠️ This is a proof-of-concept implementation with many limitations discussed later. It is not intended for production use or full accuracy; the goal is to explore what multiagent systems can do for this type of task.
 
 ## Preview
 
+
 Here is a preview of the app in action:
 
+![Demo](doc/video_1.gif)
 
 
+
+### Statement Extraction
 After extraction, you can explore claims seamlessly between the PDF viewer and the statement section:
 
+![Demo](doc/video_2.gif)
 
+
+### Reference Extraction
 You can also open each extracted reference:
+
+![Demo](doc/video_3.gif)
 
 
 

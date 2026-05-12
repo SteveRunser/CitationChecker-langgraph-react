@@ -7,97 +7,7 @@ import extractStatements from './graphs/statement-extraction-graph'
 import extractReferences from './graphs/reference-extraction-graph'
 import verifyStatements from './graphs/statement-verification-graph'
 
-// const STORAGE_VERSION = 1;
-// const STORAGE_DB_NAME = 'citationChecker';
-// const STORAGE_STORE_NAME = 'stateMachineSnapshots';
 
-// const buildStorageKey = (pdfFilePath) => {
-//   const safePath = typeof pdfFilePath === 'string' ? pdfFilePath : '';
-//   return `stateMachine:${encodeURIComponent(safePath)}`;
-// };
-
-// const serializeMap = (map) => (map instanceof Map ? Array.from(map.entries()) : []);
-// const deserializeMap = (entries) => {
-//   if (entries instanceof Map) {
-//     return new Map(entries);
-//   }
-//   if (Array.isArray(entries)) {
-//     return new Map(entries);
-//   }
-//   if (entries && typeof entries === 'object') {
-//     return new Map(Object.entries(entries));
-//   }
-//   return new Map();
-// };
-
-// const openSnapshotDb = () => new Promise((resolve, reject) => {
-//   if (typeof window === 'undefined' || !window.indexedDB) {
-//     reject(new Error('IndexedDB not available'));
-//     return;
-//   }
-
-//   const request = window.indexedDB.open(STORAGE_DB_NAME, STORAGE_VERSION);
-
-//   request.onupgradeneeded = () => {
-//     const db = request.result;
-//     if (!db.objectStoreNames.contains(STORAGE_STORE_NAME)) {
-//       db.createObjectStore(STORAGE_STORE_NAME);
-//     }
-//   };
-
-//   request.onsuccess = () => resolve(request.result);
-//   request.onerror = () => reject(request.error);
-// });
-
-// const getSnapshotFromDb = async (key) => {
-//   const db = await openSnapshotDb();
-//   return new Promise((resolve, reject) => {
-//     const tx = db.transaction(STORAGE_STORE_NAME, 'readonly');
-//     const store = tx.objectStore(STORAGE_STORE_NAME);
-//     const request = store.get(key);
-//     request.onsuccess = () => resolve(request.result ?? null);
-//     request.onerror = () => reject(request.error);
-//   });
-// };
-
-// const putSnapshotInDb = async (key, value) => {
-//   const db = await openSnapshotDb();
-//   return new Promise((resolve, reject) => {
-//     const tx = db.transaction(STORAGE_STORE_NAME, 'readwrite');
-//     const store = tx.objectStore(STORAGE_STORE_NAME);
-//     const request = store.put(value, key);
-//     request.onsuccess = () => resolve();
-//     request.onerror = () => reject(request.error);
-//   });
-// };
-
-// const loadExtractionSnapshot = async (pdfFilePath) => {
-//   try {
-//     const raw = await getSnapshotFromDb(buildStorageKey(pdfFilePath));
-//     if (!raw || raw?.version !== STORAGE_VERSION) return null;
-//     return raw?.context ?? null;
-//   } catch {
-//     return null;
-//   }
-// };
-
-// const saveExtractionSnapshot = async (pdfFilePath, context) => {
-//   try {
-//     const payload = {
-//       version: STORAGE_VERSION,
-//       savedAt: new Date().toISOString(),
-//       context: {
-//         sentences: Array.isArray(context?.sentences) ? context.sentences : [],
-//         statements: serializeMap(context?.statements),
-//         references: serializeMap(context?.references),
-//       },
-//     };
-
-//     await putSnapshotInDb(buildStorageKey(pdfFilePath), payload);
-//   } catch (error) {
-//     console.warn('Failed to save extraction snapshot', error);
-//   }
-// };
 
 // Use a state machine to manage the transition between the different stages of the pipeline. 
 // The first stage of the pipeline is the extraction stage, which runs both the statement and reference 
@@ -152,30 +62,6 @@ const sentenceExtractionStateManagement = {
 }
 //---------------------------------------------------------------------------------
 
-//---------------------------------------------------------------------------------
-// Load a saved extraction snapshot (if any) before running the pipeline.
-const rehydrationStateManagement = (pdfFilePath) => ({
-  invoke: {
-    src: fromPromise(async () => loadExtractionSnapshot(pdfFilePath)),
-    onDone: [
-      {
-        target: "verification",
-        guard: ({ event }) => Boolean(event?.output),
-        actions: assign({
-          sentences: ({ event }) => event?.output?.sentences ?? [],
-          statements: ({ event }) => deserializeMap(event?.output?.statements),
-          references: ({ event }) => deserializeMap(event?.output?.references),
-          error: () => null,
-        }),
-      },
-      { target: "pdfLoading" },
-    ],
-    onError: {
-      target: "pdfLoading",
-    },
-  },
-});
-//---------------------------------------------------------------------------------
 
 
 //---------------------------------------------------------------------------------
@@ -401,7 +287,7 @@ const constructStateMachine = ({ pdfFilePath, apiKey, userEmail }) => {
   // The main state machine that manages the overall pipeline
   const stateMachine = createMachine({
     id: "extraction-verification-pipeline",
-    initial: "rehydrating",
+    initial: "pdfLoading",
 
     // Statements and references are stored in the context as they are extracted
     // If any error is triggered, the machine transitions to the error state and 
@@ -415,9 +301,7 @@ const constructStateMachine = ({ pdfFilePath, apiKey, userEmail }) => {
     },
 
     states: {
-      // Attempt to load a saved extraction snapshot before running the pipeline.
-      rehydrating: rehydrationStateManagement(pdfFilePath),
-
+    
       // The PDF loading stage is responsible for loading the PDF and preparing it for sentence extraction.
       pdfLoading: pdfLoadingStateManagement(pdfFilePath),
 
@@ -433,9 +317,6 @@ const constructStateMachine = ({ pdfFilePath, apiKey, userEmail }) => {
         },
         onDone: {
           target: "verification",
-          actions: ({ context }) => {
-            void saveExtractionSnapshot(pdfFilePath, context);
-          },
         }
       },
 
