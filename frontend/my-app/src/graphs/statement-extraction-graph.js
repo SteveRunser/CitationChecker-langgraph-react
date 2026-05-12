@@ -3,15 +3,6 @@ import { ChatOpenAI } from '@langchain/openai';
 
 const openAIProxyBaseUrl = new URL('/openai/v1', window.location.origin).toString();
 
-const model = new ChatOpenAI({
-    model: 'gpt-5-nano',
-    apiKey: 'proxy-auth',
-    configuration: {
-        baseURL: openAIProxyBaseUrl,
-    },
-    dangerouslyAllowBrowser: true,
-});
-
 const modelOutputSchema = {
     type: 'object',
     properties: {
@@ -33,14 +24,40 @@ const modelOutputSchema = {
     additionalProperties: false,
 };
 
-const structuredModel = model.withStructuredOutput(modelOutputSchema, {
-    name: 'statement_extraction_output',
-    method: 'functionCalling',
-    strict: false,
-});
+const modelCache = new Map();
+
+const buildStructuredModel = (apiKey) => {
+    const trimmedKey = typeof apiKey === 'string' ? apiKey.trim() : '';
+    if (!trimmedKey) {
+        throw new Error('Missing OpenAI API key.');
+    }
+
+    if (modelCache.has(trimmedKey)) {
+        return modelCache.get(trimmedKey);
+    }
+
+    const model = new ChatOpenAI({
+        model: 'gpt-5-nano',
+        apiKey: trimmedKey,
+        configuration: {
+            baseURL: openAIProxyBaseUrl,
+        },
+        dangerouslyAllowBrowser: true,
+    });
+
+    const structuredModel = model.withStructuredOutput(modelOutputSchema, {
+        name: 'statement_extraction_output',
+        method: 'functionCalling',
+        strict: false,
+    });
+
+    modelCache.set(trimmedKey, structuredModel);
+    return structuredModel;
+};
 
 const StatementExtractionState = Annotation.Root({
     sentences: Annotation(),
+    apiKey: Annotation(),
     statements: Annotation({
         reducer: (left, right) => {
             const leftMap = left instanceof Map ? left : new Map();
@@ -60,12 +77,14 @@ const fanOutStatementExtractionNode = (state) => {
             sentence_id: Number(sentenceId),
             sentence,
             sentences,
+            apiKey: state?.apiKey,
             onStatement: state?.onStatement,
         })
     );
 };
 
 const statementExtractionNode = async (state) => {
+    const structuredModel = buildStructuredModel(state?.apiKey);
     const sentenceId = Number(state?.sentence_id);
     const onStatement = typeof state?.onStatement === 'function' ? state.onStatement : null;
 
@@ -139,7 +158,7 @@ Rules:
 
 
 
-async function extractStatements({sentences, onStatement}) {
+async function extractStatements({ sentences, onStatement, apiKey }) {
     const sentenceCount = Object.keys(sentences).length;
 
     if (sentenceCount === 0) {
@@ -157,6 +176,7 @@ async function extractStatements({sentences, onStatement}) {
         {
             sentences,
             statements: new Map(),
+            apiKey,
             onStatement: (statement) => {
                 console.log(`[statement] sentence=${statement?.sentence?.id ?? 'unknown'} | ${statement.claim}`);
                 onStatement?.(statement);

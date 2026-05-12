@@ -7,97 +7,97 @@ import extractStatements from './graphs/statement-extraction-graph'
 import extractReferences from './graphs/reference-extraction-graph'
 import verifyStatements from './graphs/statement-verification-graph'
 
-const STORAGE_VERSION = 1;
-const STORAGE_DB_NAME = 'citationChecker';
-const STORAGE_STORE_NAME = 'stateMachineSnapshots';
+// const STORAGE_VERSION = 1;
+// const STORAGE_DB_NAME = 'citationChecker';
+// const STORAGE_STORE_NAME = 'stateMachineSnapshots';
 
-const buildStorageKey = (pdfFilePath) => {
-  const safePath = typeof pdfFilePath === 'string' ? pdfFilePath : '';
-  return `stateMachine:${encodeURIComponent(safePath)}`;
-};
+// const buildStorageKey = (pdfFilePath) => {
+//   const safePath = typeof pdfFilePath === 'string' ? pdfFilePath : '';
+//   return `stateMachine:${encodeURIComponent(safePath)}`;
+// };
 
-const serializeMap = (map) => (map instanceof Map ? Array.from(map.entries()) : []);
-const deserializeMap = (entries) => {
-  if (entries instanceof Map) {
-    return new Map(entries);
-  }
-  if (Array.isArray(entries)) {
-    return new Map(entries);
-  }
-  if (entries && typeof entries === 'object') {
-    return new Map(Object.entries(entries));
-  }
-  return new Map();
-};
+// const serializeMap = (map) => (map instanceof Map ? Array.from(map.entries()) : []);
+// const deserializeMap = (entries) => {
+//   if (entries instanceof Map) {
+//     return new Map(entries);
+//   }
+//   if (Array.isArray(entries)) {
+//     return new Map(entries);
+//   }
+//   if (entries && typeof entries === 'object') {
+//     return new Map(Object.entries(entries));
+//   }
+//   return new Map();
+// };
 
-const openSnapshotDb = () => new Promise((resolve, reject) => {
-  if (typeof window === 'undefined' || !window.indexedDB) {
-    reject(new Error('IndexedDB not available'));
-    return;
-  }
+// const openSnapshotDb = () => new Promise((resolve, reject) => {
+//   if (typeof window === 'undefined' || !window.indexedDB) {
+//     reject(new Error('IndexedDB not available'));
+//     return;
+//   }
 
-  const request = window.indexedDB.open(STORAGE_DB_NAME, STORAGE_VERSION);
+//   const request = window.indexedDB.open(STORAGE_DB_NAME, STORAGE_VERSION);
 
-  request.onupgradeneeded = () => {
-    const db = request.result;
-    if (!db.objectStoreNames.contains(STORAGE_STORE_NAME)) {
-      db.createObjectStore(STORAGE_STORE_NAME);
-    }
-  };
+//   request.onupgradeneeded = () => {
+//     const db = request.result;
+//     if (!db.objectStoreNames.contains(STORAGE_STORE_NAME)) {
+//       db.createObjectStore(STORAGE_STORE_NAME);
+//     }
+//   };
 
-  request.onsuccess = () => resolve(request.result);
-  request.onerror = () => reject(request.error);
-});
+//   request.onsuccess = () => resolve(request.result);
+//   request.onerror = () => reject(request.error);
+// });
 
-const getSnapshotFromDb = async (key) => {
-  const db = await openSnapshotDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORAGE_STORE_NAME, 'readonly');
-    const store = tx.objectStore(STORAGE_STORE_NAME);
-    const request = store.get(key);
-    request.onsuccess = () => resolve(request.result ?? null);
-    request.onerror = () => reject(request.error);
-  });
-};
+// const getSnapshotFromDb = async (key) => {
+//   const db = await openSnapshotDb();
+//   return new Promise((resolve, reject) => {
+//     const tx = db.transaction(STORAGE_STORE_NAME, 'readonly');
+//     const store = tx.objectStore(STORAGE_STORE_NAME);
+//     const request = store.get(key);
+//     request.onsuccess = () => resolve(request.result ?? null);
+//     request.onerror = () => reject(request.error);
+//   });
+// };
 
-const putSnapshotInDb = async (key, value) => {
-  const db = await openSnapshotDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORAGE_STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORAGE_STORE_NAME);
-    const request = store.put(value, key);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
-};
+// const putSnapshotInDb = async (key, value) => {
+//   const db = await openSnapshotDb();
+//   return new Promise((resolve, reject) => {
+//     const tx = db.transaction(STORAGE_STORE_NAME, 'readwrite');
+//     const store = tx.objectStore(STORAGE_STORE_NAME);
+//     const request = store.put(value, key);
+//     request.onsuccess = () => resolve();
+//     request.onerror = () => reject(request.error);
+//   });
+// };
 
-const loadExtractionSnapshot = async (pdfFilePath) => {
-  try {
-    const raw = await getSnapshotFromDb(buildStorageKey(pdfFilePath));
-    if (!raw || raw?.version !== STORAGE_VERSION) return null;
-    return raw?.context ?? null;
-  } catch {
-    return null;
-  }
-};
+// const loadExtractionSnapshot = async (pdfFilePath) => {
+//   try {
+//     const raw = await getSnapshotFromDb(buildStorageKey(pdfFilePath));
+//     if (!raw || raw?.version !== STORAGE_VERSION) return null;
+//     return raw?.context ?? null;
+//   } catch {
+//     return null;
+//   }
+// };
 
-const saveExtractionSnapshot = async (pdfFilePath, context) => {
-  try {
-    const payload = {
-      version: STORAGE_VERSION,
-      savedAt: new Date().toISOString(),
-      context: {
-        sentences: Array.isArray(context?.sentences) ? context.sentences : [],
-        statements: serializeMap(context?.statements),
-        references: serializeMap(context?.references),
-      },
-    };
+// const saveExtractionSnapshot = async (pdfFilePath, context) => {
+//   try {
+//     const payload = {
+//       version: STORAGE_VERSION,
+//       savedAt: new Date().toISOString(),
+//       context: {
+//         sentences: Array.isArray(context?.sentences) ? context.sentences : [],
+//         statements: serializeMap(context?.statements),
+//         references: serializeMap(context?.references),
+//       },
+//     };
 
-    await putSnapshotInDb(buildStorageKey(pdfFilePath), payload);
-  } catch (error) {
-    console.warn('Failed to save extraction snapshot', error);
-  }
-};
+//     await putSnapshotInDb(buildStorageKey(pdfFilePath), payload);
+//   } catch (error) {
+//     console.warn('Failed to save extraction snapshot', error);
+//   }
+// };
 
 // Use a state machine to manage the transition between the different stages of the pipeline. 
 // The first stage of the pipeline is the extraction stage, which runs both the statement and reference 
@@ -180,7 +180,7 @@ const rehydrationStateManagement = (pdfFilePath) => ({
 
 //---------------------------------------------------------------------------------
 // Sub-state machine for the statement extraction process
-const statementExtractionStateManagement= {
+const statementExtractionStateManagement = (apiKey) => ({
   initial: "running",
   states: {
     running: {
@@ -195,6 +195,7 @@ const statementExtractionStateManagement= {
           // statements are extracted.
           extractStatements({
             sentences: input.sentences,
+            apiKey,
 
             // Custom callback function
             onStatement: (statement) => {
@@ -247,7 +248,7 @@ const statementExtractionStateManagement= {
       target: ".done"
     },
   },
-}
+});
 //---------------------------------------------------------------------------------
 
 
@@ -255,7 +256,7 @@ const statementExtractionStateManagement= {
 // Sub-state machine for the reference extract process. The logic is the same as for 
 // the statement extraction sub-state machine, but it listens for different events 
 // and updates a different part of the context.
-const referenceExtractionStateManagement = {
+const referenceExtractionStateManagement = (apiKey, userEmail) => ({
   initial: "running",
   states: {
     running: {
@@ -265,6 +266,8 @@ const referenceExtractionStateManagement = {
 
           extractReferences({
             sentences: input.sentences,
+            apiKey,
+            userEmail,
             onReference: (reference) => {
               if (isActive) {
                 sendBack({ type: "REFERENCE_EXTRACTION_NEW_DATA", reference });
@@ -310,14 +313,14 @@ const referenceExtractionStateManagement = {
       target: ".done"
     },
   }
-}
+});
 //---------------------------------------------------------------------------------
 
 
 
 //---------------------------------------------------------------------------------
 // Sub-state machine for the statement verification process
-const statementVerificationStateManagement= {
+const statementVerificationStateManagement = (apiKey) => ({
   initial: "running",
   states: {
     running: {
@@ -333,6 +336,7 @@ const statementVerificationStateManagement= {
           verifyStatements({
             statements: input.statements,
             references: input.references,
+            apiKey,
 
             // Custom callback function
             onVerification: (statement) => {
@@ -385,14 +389,14 @@ const statementVerificationStateManagement= {
   onDone: {
     target: "#extraction-verification-pipeline.done"
   },
-}
+});
 //---------------------------------------------------------------------------------
 
 
 
 //---------------------------------------------------------------------------------
 // Factory function to create the main state machine
-const constructStateMachine = ({pdfFilePath}) => {
+const constructStateMachine = ({ pdfFilePath, apiKey, userEmail }) => {
 
   // The main state machine that manages the overall pipeline
   const stateMachine = createMachine({
@@ -424,8 +428,8 @@ const constructStateMachine = ({pdfFilePath}) => {
       statementReferenceExtraction: {
         type: "parallel",
         states: {
-            statementExtraction: statementExtractionStateManagement,
-            referenceExtraction: referenceExtractionStateManagement,
+            statementExtraction: statementExtractionStateManagement(apiKey),
+            referenceExtraction: referenceExtractionStateManagement(apiKey, userEmail),
         },
         onDone: {
           target: "verification",
@@ -436,7 +440,7 @@ const constructStateMachine = ({pdfFilePath}) => {
       },
 
       // The verifying state runs the statement verification graph
-      verification: statementVerificationStateManagement,
+      verification: statementVerificationStateManagement(apiKey),
 
       // Stops the execution of the machine when this state is reached.
       done: { type: "final" },

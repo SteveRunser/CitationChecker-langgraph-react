@@ -6,18 +6,33 @@ import { raise } from 'xstate';
 
 const openAIProxyBaseUrl = new URL('/openai/v1', window.location.origin).toString();
 
-const model = new ChatOpenAI({
-    model: 'gpt-5-nano',
-    apiKey: 'proxy-auth',
-    configuration: {
-        baseURL: openAIProxyBaseUrl,
-    },
-    dangerouslyAllowBrowser: true,
-});
+const modelCache = new Map();
+
+const buildModel = (apiKey) => {
+    const trimmedKey = typeof apiKey === 'string' ? apiKey.trim() : '';
+    if (!trimmedKey) {
+        throw new Error('Missing OpenAI API key.');
+    }
+
+    if (modelCache.has(trimmedKey)) {
+        return modelCache.get(trimmedKey);
+    }
+
+    const model = new ChatOpenAI({
+        model: 'gpt-5-nano',
+        apiKey: trimmedKey,
+        configuration: {
+            baseURL: openAIProxyBaseUrl,
+        },
+        dangerouslyAllowBrowser: true,
+    });
+
+    modelCache.set(trimmedKey, model);
+    return model;
+};
 
 const CROSSREF_API_URL = 'https://api.crossref.org/works';
 const UNPAYWALL_API_BASE = 'https://api.unpaywall.org/v2';
-const UNPAYWALL_EMAIL = (import.meta.env.VITE_UNPAYWALL_EMAIL ?? '').trim();
 const PAPER_FETCH_PROXY_URL = '/paper-fetch';
 const turndownService = new TurndownService({ headingStyle: 'atx' });
 
@@ -80,22 +95,23 @@ const fetchCrossrefMetadata = async (reference) => {
     };
 };
 
-const fetchOpenAccessMetadata = async (reference) => {
+const fetchOpenAccessMetadata = async (reference, userEmail) => {
 
   
 
     const doi = cleanString(reference?.doi);
-    if (!doi || !UNPAYWALL_EMAIL) {
+    const email = typeof userEmail === 'string' ? userEmail.trim() : '';
+    if (!doi || !email) {
         console.warn('[unpaywall] skipped before fetch', {
             hasDoi: Boolean(doi),
-            hasEmail: Boolean(UNPAYWALL_EMAIL),
+            hasEmail: Boolean(email),
         });
         return reference;
     }
 
     let response;
     try {
-        response = await fetch(`${UNPAYWALL_API_BASE}/${encodeURIComponent(doi)}?email=${encodeURIComponent(UNPAYWALL_EMAIL)}`);
+        response = await fetch(`${UNPAYWALL_API_BASE}/${encodeURIComponent(doi)}?email=${encodeURIComponent(email)}`);
         console.log(`[unpaywall] ${response.ok} ${response.status}`);
 
         if (!response.ok) {
@@ -161,13 +177,13 @@ const fetchPaperContent = async (reference) => {
     };
 };
 
-const fetchReferenceMetadataOnline = async (reference) => {
+const fetchReferenceMetadataOnline = async (reference, userEmail) => {
 
     
     try {
         let enrichedReference = { ...reference };
         enrichedReference = await fetchCrossrefMetadata(enrichedReference);
-        enrichedReference = await fetchOpenAccessMetadata(enrichedReference);
+        enrichedReference = await fetchOpenAccessMetadata(enrichedReference, userEmail);
         enrichedReference = await fetchPaperContent(enrichedReference);
         return enrichedReference;
     } catch (error) {
@@ -178,6 +194,8 @@ const fetchReferenceMetadataOnline = async (reference) => {
 
 const ReferenceExtractionState = Annotation.Root({
     document: Annotation(),
+    apiKey: Annotation(),
+    userEmail: Annotation(),
     references: Annotation({
         reducer: (left, right) => {
             const leftMap = left instanceof Map ? left : new Map();
@@ -203,7 +221,9 @@ const normalizeReference = (value) => ({
 });
 
 const referenceExtractionNode = async (state) => {
+    const model = buildModel(state?.apiKey);
     const document = state.document ?? '';
+    const userEmail = state?.userEmail;
     const onReference = typeof state.onReference === 'function' ? state.onReference : null;
     const references = [];
     const seen = new Set();
@@ -248,7 +268,7 @@ Each JSON object must follow:
             seen.add(key);
 
 
-            const enrichedReference = normalizeReference(await fetchReferenceMetadataOnline(reference));
+            const enrichedReference = normalizeReference(await fetchReferenceMetadataOnline(reference, userEmail));
 
             onReference?.(enrichedReference);
         } catch {
@@ -276,7 +296,7 @@ Each JSON object must follow:
 
 
 
-async function extractReferences({sentences, onReference}) {
+async function extractReferences({ sentences, onReference, apiKey, userEmail }) {
 
     // Convert the sentences into a single document string for the model to process
     const fullText = sentences.reduce((acc, sentence) => acc + " " + sentence.text.trim(), "");
@@ -297,6 +317,8 @@ async function extractReferences({sentences, onReference}) {
     const initialState = {
         document: fullText,
         references: new Map(),
+        apiKey,
+        userEmail,
         onReference: (reference) => {
             console.log(`[reference id=${reference.ref_id}] | ${reference.title} | content : ${reference.content ?? "NA"}`);
             onReference?.(reference);

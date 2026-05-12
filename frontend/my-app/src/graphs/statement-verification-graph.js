@@ -3,15 +3,6 @@ import { ChatOpenAI } from '@langchain/openai';
 
 const openAIProxyBaseUrl = new URL('/openai/v1', window.location.origin).toString();
 
-const model = new ChatOpenAI({
-    model: 'gpt-5-nano',
-    apiKey: 'proxy-auth',
-    configuration: {
-        baseURL: openAIProxyBaseUrl,
-    },
-    dangerouslyAllowBrowser: true,
-});
-
 // Limit the number of concurrent calls to the openAI api
 const MAX_CONCURRENCY = 3;
 
@@ -31,15 +22,41 @@ const modelOutputSchema = {
     additionalProperties: false,
 };
 
-const structuredModel = model.withStructuredOutput(modelOutputSchema, {
-    name: 'statement_verification_output',
-    method: 'functionCalling',
-    strict: false,
-});
+const modelCache = new Map();
+
+const buildStructuredModel = (apiKey) => {
+    const trimmedKey = typeof apiKey === 'string' ? apiKey.trim() : '';
+    if (!trimmedKey) {
+        throw new Error('Missing OpenAI API key.');
+    }
+
+    if (modelCache.has(trimmedKey)) {
+        return modelCache.get(trimmedKey);
+    }
+
+    const model = new ChatOpenAI({
+        model: 'gpt-5-nano',
+        apiKey: trimmedKey,
+        configuration: {
+            baseURL: openAIProxyBaseUrl,
+        },
+        dangerouslyAllowBrowser: true,
+    });
+
+    const structuredModel = model.withStructuredOutput(modelOutputSchema, {
+        name: 'statement_verification_output',
+        method: 'functionCalling',
+        strict: false,
+    });
+
+    modelCache.set(trimmedKey, structuredModel);
+    return structuredModel;
+};
 
 const StatementVerificationState = Annotation.Root({
     statements: Annotation(),
     references: Annotation(),
+    apiKey: Annotation(),
     onVerification: Annotation(),
 });
 
@@ -47,13 +64,13 @@ const StatementVerificationState = Annotation.Root({
 // Output: list of Send instructions, one per statement.
 // Purpose: fan-out work so each statement is verified independently and in parallel.
 const fanOutStatementVerificationNode = (state) => {
-
     const referencesPayload = toPlainObject(state.references);
 
-    return  Array.from(state.statements.entries()).map(([statementId, statement]) =>
+    return Array.from(state.statements.entries()).map(([statementId, statement]) =>
         new Send('statement_verification_node', {
             statement,
             references: referencesPayload,
+            apiKey: state?.apiKey,
             onVerification: state?.onVerification,
         })
     );
@@ -138,6 +155,7 @@ const toReferenceMap = (value) => {
 // Output: partial state with verifiedStatements containing the updated statement.
 // Purpose: verify a claim using open-access references and emit streaming updates.
 const statementVerificationNode = async (state) => {
+    const structuredModel = buildStructuredModel(state?.apiKey);
     const onVerification = typeof state?.onVerification === 'function' ? state.onVerification : null;
     const statement = state?.statement ?? null;
     const references = state?.references ?? null;
@@ -146,18 +164,17 @@ const statementVerificationNode = async (state) => {
     const referencesMap = toReferenceMap(references);
 
     console.log(referencesMap);
-    console.log(statement);    
+    console.log(statement);
 
     // Collect the cited references in the statement
     const citationIds = Array.isArray(statement?.citations) ? statement.citations : [];
 
-    // Get the open access references that have content available for verification. 
+    // Get the open access references that have content available for verification.
     const openAccessReferences = citationIds
         .map((id) => referencesMap.get(id) ?? referencesMap.get(String(id)))
         .filter(ref => Boolean(ref?.content?.trim()));
 
     console.log(`Verifying statement ${statement?.sentence?.id ?? statement?.sentence_id ?? 'unknown'} with citations [${citationIds.join(', ')}] and open access references [${openAccessReferences.map(ref => ref?.ref_id ?? 'unknown').join(', ')}]`);
-
 
     // If no citation is open access, we cannot verify the claim, so we mark it as Unverified with an explanation.
     if (openAccessReferences.length === 0) {
@@ -174,8 +191,6 @@ const statementVerificationNode = async (state) => {
         return null;
     }
 
-    // If the claim can be verified, construct a prompt where the cited papers are in 
-    // the context.
     const prompt = `
 You are an expert at verifying scientific claims by analyzing the cited references.
 Here is the scientific claim you need to verify:
@@ -230,14 +245,10 @@ Rules:
     return null;
 };
 
-
-
-
 // Input: statements array, references (array/Map/object), and options.
 // Output: array of verified statements from the final graph state.
 // Purpose: orchestrate the graph run with concurrency limits and streaming hooks.
-async function verifyStatements({statements, references, onVerification}) {
-
+async function verifyStatements({ statements, references, onVerification, apiKey }) {
     if (statements.size === 0) {
         throw new Error('No statements to verify');
     }
@@ -245,7 +256,7 @@ async function verifyStatements({statements, references, onVerification}) {
         throw new Error('No references provided for verification');
     }
 
-    // Create the graph with a retry policy on the statement verification node 
+    // Create the graph with a retry policy on the statement verification node
     // to handle rate limits gracefully.
     const statementVerificationGraph = new StateGraph(StatementVerificationState)
         .addNode('statement_verification_node', statementVerificationNode, {
@@ -262,6 +273,7 @@ async function verifyStatements({statements, references, onVerification}) {
         {
             statements: statements,
             references: references,
+            apiKey,
             onVerification: onVerification,
         },
         {
