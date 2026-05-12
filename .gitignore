@@ -1,4 +1,5 @@
 citation_checker_env/
 .env
+.DS_Store
 .vscode/
 node_modules/
