@@ -1,3 +1,4 @@
 citation_checker_env/
 .env
+.vscode/
 node_modules/
